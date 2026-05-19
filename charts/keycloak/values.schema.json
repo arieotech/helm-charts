@@ -1,0 +1,238 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Keycloak",
+  "description": "Arieotech production Keycloak chart values schema",
+  "type": "object",
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of Keycloak replicas. Minimum 3 recommended for production."
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "registry": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Image registry hostname. Example: quay.io"
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Image repository path without registry. Example: keycloak/keycloak"
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "not": { "pattern": "^latest$" },
+          "description": "Specific version tag. 'latest' is rejected — pin to a version or use digest."
+        },
+        "digest": {
+          "type": "string",
+          "description": "SHA256 digest (sha256:abc...). When set, overrides tag for immutable pinning."
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"]
+        }
+      },
+      "required": ["registry", "repository", "tag"]
+    },
+    "keycloak": {
+      "type": "object",
+      "properties": {
+        "auth": {
+          "type": "object",
+          "properties": {
+            "adminUser": { "type": "string", "minLength": 1 },
+            "adminPassword": { "type": "string" },
+            "existingSecret": { "type": "string" },
+            "existingSecretKey": { "type": "string" }
+          }
+        },
+        "http": {
+          "type": "object",
+          "properties": {
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "httpsPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "relativePath": { "type": "string" }
+          }
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "vendor": {
+          "type": "string",
+          "enum": ["postgres", "mysql", "mariadb", "mssql", "oracle"]
+        },
+        "host": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "name": { "type": "string" },
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "existingSecret": { "type": "string" }
+      }
+    },
+    "cache": {
+      "type": "object",
+      "properties": {
+        "stack": {
+          "type": "string",
+          "enum": ["kubernetes", "tcp", "udp", "jdbc-ping"]
+        },
+        "owners": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["ClusterIP", "LoadBalancer", "NodePort"]
+        },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "httpsPort": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "className": { "type": "string" },
+        "annotations": { "type": "object" },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "host": { "type": "string" },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string" },
+                    "pathType": {
+                      "type": "string",
+                      "enum": ["Prefix", "Exact", "ImplementationSpecific"]
+                    }
+                  },
+                  "required": ["path", "pathType"]
+                }
+              }
+            },
+            "required": ["host"]
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": { "type": "string" },
+            "memory": { "type": "string" }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "memory": { "type": "string" }
+          }
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" }
+      }
+    },
+    "pdb": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "minAvailable": { "type": ["integer", "string"] },
+        "maxUnavailable": { "type": ["integer", "string"] }
+      }
+    },
+    "autoscaling": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "kind": {
+          "type": "string",
+          "enum": ["Deployment", "StatefulSet"],
+          "description": "Kubernetes workload kind to scale. Use StatefulSet for Keycloak."
+        },
+        "minReplicas": { "type": "integer", "minimum": 1 },
+        "maxReplicas": { "type": "integer", "minimum": 1 },
+        "targetCPUUtilizationPercentage": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "targetMemoryUtilizationPercentage": { "type": "integer", "minimum": 1, "maximum": 100 }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "prometheusRule": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "namespace": { "type": "string" },
+            "labels": { "type": "object" },
+            "additionalRules": { "type": "array" }
+          }
+        },
+        "serviceMonitor": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "namespace": { "type": "string" },
+            "labels": { "type": "object" },
+            "interval": { "type": "string" },
+            "scrapeTimeout": { "type": "string" }
+          }
+        }
+      }
+    },
+    "soc2": {
+      "type": "object",
+      "properties": {
+        "auditLogging": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" }
+          }
+        },
+        "enforceTLS": { "type": "boolean" }
+      }
+    },
+    "dpdp": {
+      "type": "object",
+      "properties": {
+        "piiMasking": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" }
+          }
+        },
+        "dataResidency": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "region": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

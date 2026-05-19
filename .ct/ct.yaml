@@ -1,0 +1,10 @@
+remote: origin
+chart-dirs:
+  - charts
+excluded-charts:
+  - arieotech-lib
+chart-repos:
+  - cert-manager=https://charts.jetstack.io
+helm-extra-args: --timeout 600s
+validate-maintainers: false
+check-version-increment: true

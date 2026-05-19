@@ -1,0 +1,43 @@
+Keycloak {{ .Chart.AppVersion }} has been deployed.
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Replicas: {{ .Values.replicaCount }}
+
+{{- if .Values.ingress.enabled }}
+
+Access Keycloak at:
+{{- range .Values.ingress.hosts }}
+  https://{{ .host }}
+{{- end }}
+Admin console: https://{{ (index .Values.ingress.hosts 0).host }}/admin
+
+{{- else if eq .Values.service.type "ClusterIP" }}
+
+Port-forward to access locally:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "keycloak.fullname" . }} 8080:80
+Admin console: http://localhost:8080/admin
+
+{{- end }}
+
+Admin user: {{ .Values.keycloak.auth.adminUser }}
+
+{{- if not .Values.keycloak.auth.existingSecret }}
+
+WARNING: Admin password was set via values. Use existingSecret in production.
+  kubectl create secret generic keycloak-admin \
+    --from-literal=admin-password=<password> \
+    -n {{ .Release.Namespace }}
+  Then set: keycloak.auth.existingSecret=keycloak-admin
+
+{{- end }}
+
+Production checklist:
+  [ ] database.existingSecret configured (not plain password in values)
+  [ ] keycloak.auth.existingSecret configured
+  [ ] ingress.tls configured with cert-manager or wildcard cert
+  [ ] replicaCount >= 3
+  [ ] networkPolicy.enabled=true (default)
+  [ ] metrics.serviceMonitor.enabled=true if using Prometheus Operator
+
+Documentation: https://github.com/arieotech/helm-charts/tree/main/charts/keycloak

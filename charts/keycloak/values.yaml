@@ -1,0 +1,356 @@
+## Arieotech Keycloak — Production Defaults
+## All values are overridable. See values.schema.json for validation rules.
+
+## @section Global
+global:
+  ## Image pull secrets applied to all pods
+  imagePullSecrets: []
+  ## Storage class for PVCs — leave empty to use cluster default
+  storageClass: ""
+
+## @section Image
+image:
+  registry: quay.io
+  repository: keycloak/keycloak
+  tag: "26.1.4"
+  ## Set in production for immutability: sha256:<digest> (takes precedence over tag)
+  digest: ""
+  pullPolicy: IfNotPresent
+
+## @section Replica count
+## For production: 3 replicas minimum. Single-replica disables PDB.
+replicaCount: 3
+
+## @section Name overrides
+nameOverride: ""
+fullnameOverride: ""
+
+## @section Proxy and hostname
+## Controls how Keycloak handles requests arriving through a reverse proxy or ingress.
+proxy:
+  ## KC_PROXY_HEADERS: forwarded | xforwarded
+  ## Use "xforwarded" for nginx/ALB; "forwarded" for RFC7239-compliant proxies
+  mode: xforwarded
+  ## KC_HOSTNAME_STRICT: when true, Keycloak rejects requests for unexpected hostnames
+  hostnameStrict: "false"
+  http:
+    ## KC_HTTP_ENABLED: set false only for end-to-end TLS (no TLS termination at proxy)
+    enabled: true
+
+## @section Realm import
+## Mount a realm JSON as a ConfigMap and auto-import on first startup.
+## Keycloak skips import if the realm already exists (idempotent).
+realmImport:
+  enabled: false
+  ## Map of realm-name: JSON string
+  ## Each entry becomes a file in /opt/keycloak/data/import/<name>.json
+  realms: {}
+  # my-realm: |
+  #   {
+  #     "realm": "my-realm",
+  #     "enabled": true,
+  #     "roles": { ... },
+  #     "clients": [ ... ]
+  #   }
+
+## @section Database checker init container
+## Waits for PostgreSQL to accept connections before Keycloak starts.
+## Prevents false startup failures during cluster cold-starts.
+dbchecker:
+  enabled: false
+  image:
+    repository: busybox
+    tag: "1.37"
+    pullPolicy: IfNotPresent
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    capabilities:
+      drop:
+        - ALL
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 20m
+      memory: 32Mi
+
+## @section Skip init containers
+## Set true to skip init containers entirely when the deployment environment requires it.
+## and rely on Keycloak's own retry loop for database connectivity.
+skipInitContainers: false
+
+## @section Keycloak configuration
+keycloak:
+  ## Admin credentials — use externalSecret in production, not plain values
+  auth:
+    adminUser: admin
+    ## REQUIRED in production: set via --set keycloak.auth.adminPassword=<secret>
+    ## or use existingSecret below
+    adminPassword: ""
+    existingSecret: ""
+    existingSecretKey: admin-password
+
+  ## HTTP/HTTPS configuration
+  http:
+    ## Internal port Keycloak listens on (do not expose directly — use ingress)
+    port: 8080
+    httpsPort: 8443
+    ## Disable relative path prefix (set to / for standard deployments)
+    relativePath: "/"
+
+  ## Keycloak startup arguments passed via KC_* env vars
+  ## ref: https://www.keycloak.org/server/all-config
+  extraEnv: []
+  # - name: KC_LOG_LEVEL
+  #   value: "INFO"
+
+  ## Keycloak features
+  features:
+    ## Enable token-exchange (required for external IdP federation)
+    tokenExchange: false
+    ## Enable admin fine-grained authz
+    adminFineGrainedAuthz: false
+
+  ## JVM options — tune for your pod memory limits
+  javaOpts: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+
+## @section Database
+## Keycloak requires an external PostgreSQL database in production.
+## bundled.enabled=true is for development only.
+database:
+  ## Use an existing PostgreSQL deployment (recommended for production)
+  vendor: postgres
+  host: ""
+  port: 5432
+  name: keycloak
+  username: keycloak
+  ## Set password here (dev only) or use existingSecret
+  password: ""
+  existingSecret: ""
+  existingSecretKey: db-password
+
+
+## @section Cache / clustering
+## Keycloak uses Infinispan for session replication across replicas.
+cache:
+  ## stack: kubernetes | tcp | udp
+  stack: kubernetes
+  ## owners: number of replicas that hold a copy of each cache entry
+  ## Set to replicaCount for full redundancy; 2 is safe for most clusters
+  owners: 2
+
+## @section Service
+service:
+  type: ClusterIP
+  port: 80
+  httpsPort: 443
+  ## Annotations for cloud load balancers when type=LoadBalancer
+  annotations: {}
+
+## @section Ingress
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+  hosts:
+    - host: keycloak.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: keycloak-tls
+  #   hosts:
+  #     - keycloak.example.com
+
+## @section Resources
+## Production minimums — adjust based on realm size and user load
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    ## No CPU limit intentionally — prevents throttling during startup/token validation spikes
+    memory: 2Gi
+
+## @section Autoscaling
+autoscaling:
+  enabled: false
+  ## StatefulSet for Keycloak — change to Deployment for stateless charts
+  kind: StatefulSet
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+## @section PodDisruptionBudget
+pdb:
+  enabled: true
+  minAvailable: 1
+
+## @section ServiceAccount
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+## @section Pod security context (PSA restricted)
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## @section Container security context (PSA restricted)
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+## @section NetworkPolicy
+## Deny-all by default with explicit allow-list.
+## Override networkPolicy.extraIngress / extraEgress for custom rules.
+networkPolicy:
+  enabled: true
+  ## Allow ingress from specific namespaces (e.g. ingress-nginx namespace)
+  ingressNamespaceSelector: {}
+  ## Additional ingress rules
+  extraIngress: []
+  ## Additional egress rules (DNS is always allowed)
+  extraEgress: []
+
+## @section Persistence
+## Used for Keycloak themes and provider JARs
+persistence:
+  enabled: false
+  size: 1Gi
+  storageClass: ""
+
+## @section Probes
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 9000
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 9000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /health/started
+    port: 9000
+  ## 15s initial delay + 60 × 5s periods = 315s max startup window.
+  ## Large realms with --import-realm can take 3–4 minutes on cold start.
+  initialDelaySeconds: 15
+  periodSeconds: 5
+  failureThreshold: 60
+
+## @section Prometheus metrics
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    labels: {}
+    interval: "30s"
+    scrapeTimeout: "10s"
+    port: management
+    path: /metrics
+  prometheusRule:
+    enabled: false
+    namespace: ""
+    labels: {}
+    additionalRules: []
+
+## @section SOC2 compliance defaults
+soc2:
+  ## Emit structured JSON audit events to stdout
+  auditLogging:
+    enabled: true
+  ## Enforce TLS for all connections
+  enforceTLS: true
+
+## @section DPDP compliance defaults
+dpdp:
+  ## Mask PII fields in Keycloak logs (email, firstName, lastName)
+  piiMasking:
+    enabled: false
+  ## Data residency: add namespace annotation for OPA/Kyverno policy enforcement
+  dataResidency:
+    enabled: false
+    region: ""
+
+## @section Termination grace period
+## 60s allows Infinispan to rebalance session ownership before pod exits.
+## Increase for clusters with large caches (>1GB session data).
+terminationGracePeriodSeconds: 60
+
+## @section Generic secrets
+## Create arbitrary Secrets in the same namespace alongside the chart.
+## Useful for LDAP bind credentials, custom provider config, and SMTP passwords.
+secrets: {}
+# ldap-bind:
+#   stringData:
+#     bindDN: "cn=admin,dc=example,dc=com"
+#     bindPassword: "changeme"
+# smtp-creds:
+#   type: Opaque
+#   stringData:
+#     username: keycloak@example.com
+#     password: changeme
+
+## @section Pod annotations and labels
+podAnnotations: {}
+podLabels: {}
+
+## @section Node scheduling
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+## @section Priority class
+priorityClassName: ""
+
+## @section Extra volumes and volume mounts (for theme JARs, custom providers)
+extraVolumes: []
+extraVolumeMounts: []
+
+## @section Init containers
+initContainers: []
+
+## @section Sidecar containers
+sidecars: []
+
+## @section Topology spread
+## labelSelector is injected by the template — do not set it here.
+## Default: spread across nodes AND availability zones for HA.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway

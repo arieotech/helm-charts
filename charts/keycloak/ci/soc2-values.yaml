@@ -1,0 +1,31 @@
+## SOC2-hardened profile
+
+replicaCount: 1
+
+keycloak:
+  auth:
+    adminUser: admin
+    adminPassword: changeme-test-only
+
+database:
+  host: keycloak-postgresql
+  name: keycloak
+  username: keycloak
+  password: changeme-test-only
+  bundled:
+    enabled: true
+
+soc2:
+  auditLogging:
+    enabled: true
+  enforceTLS: false  # TLS terminated at ingress in test env
+
+dpdp:
+  piiMasking:
+    enabled: true
+
+networkPolicy:
+  enabled: true
+
+pdb:
+  enabled: false

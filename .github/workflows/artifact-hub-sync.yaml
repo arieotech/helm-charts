@@ -1,0 +1,26 @@
+name: Sync Artifact Hub
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "artifacthub-repo.yml"
+      - "charts/**/Chart.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Notify Artifact Hub
+        run: |
+          curl --fail-with-body -X POST \
+            -H "X-api-key: ${{ secrets.ARTIFACT_HUB_API_KEY }}" \
+            "https://artifacthub.io/api/v1/repositories/tracking"

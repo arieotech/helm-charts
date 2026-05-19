@@ -1,0 +1,59 @@
+apiVersion: v2
+name: keycloak
+description: >
+  Production-grade Keycloak IAM. HA clustering, PSA restricted-mode,
+  JSON Schema validation, SOC2 and DPDP compliance defaults.
+  Uses the official quay.io/keycloak/keycloak image.
+type: application
+version: 0.2.0
+appVersion: "26.1.4"
+keywords:
+  - keycloak
+  - iam
+  - sso
+  - oidc
+  - oauth2
+  - identity
+home: https://www.keycloak.org
+sources:
+  - https://github.com/arieotech/helm-charts/tree/main/charts/keycloak
+  - https://github.com/keycloak/keycloak
+icon: https://www.keycloak.org/resources/images/keycloak_icon_64px.svg
+maintainers:
+  - name: Arieotech
+    email: helm@arieotech.com
+    url: https://arieotech.com
+dependencies:
+  - name: arieotech-lib
+    version: "0.1.0"
+    repository: "file://../arieotech-lib"
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/changes: |
+    - kind: fixed
+      description: "JGroups ports corrected to 7800/57800 (Keycloak 25+ — was 7600/57600)"
+    - kind: fixed
+      description: "keycloak.features.tokenExchange and adminFineGrainedAuthz now wire to KC_FEATURES env var"
+    - kind: fixed
+      description: "KC_PROXY_HEADERS and KC_HOSTNAME_STRICT are now configurable via proxy.* values"
+    - kind: added
+      description: "Realm import: realmImport.enabled mounts ConfigMap at /opt/keycloak/data/import"
+    - kind: added
+      description: "dbchecker init container waits for PostgreSQL before Keycloak starts"
+    - kind: added
+      description: "skipInitContainers flag to skip init containers when needed"
+    - kind: added
+      description: "Generic secrets pattern via secrets.* values"
+    - kind: added
+      description: "terminationGracePeriodSeconds configurable (default 60s for Infinispan rebalance)"
+    - kind: added
+      description: "AZ topology spread constraint added to defaults"
+    - kind: changed
+      description: "Startup probe window extended to 315s (15s delay + 60×5s) for large realm imports"
+  artifacthub.io/images: |
+    - name: keycloak
+      image: quay.io/keycloak/keycloak:26.1.4
+  artifacthub.io/links: |
+    - name: Keycloak documentation
+      url: https://www.keycloak.org/documentation

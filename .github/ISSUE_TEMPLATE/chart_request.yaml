@@ -1,0 +1,27 @@
+name: Chart Request
+description: Request a new chart or an improvement to an existing one
+labels: ["chart-request"]
+body:
+  - type: input
+    id: chart-name
+    attributes:
+      label: Chart / application name
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What is broken or missing in existing charts?
+    validations:
+      required: true
+  - type: textarea
+    id: existing
+    attributes:
+      label: Existing chart status
+      description: Links to upstream/official charts and known issues
+  - type: textarea
+    id: compliance
+    attributes:
+      label: Compliance requirements
+      description: SOC2, DPDP, FedRAMP, or other requirements this chart should address
