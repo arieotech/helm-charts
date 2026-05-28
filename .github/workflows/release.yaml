@@ -45,6 +45,17 @@ jobs:
             -o /tmp/cr.tar.gz
           tar -xzf /tmp/cr.tar.gz -C /usr/local/bin cr
 
+      - name: Bootstrap gh-pages branch
+        run: |
+          if ! git ls-remote --exit-code origin gh-pages 2>/dev/null; then
+            git worktree add /tmp/gh-pages-init --orphan gh-pages
+            echo "charts.arieotech.com" > /tmp/gh-pages-init/CNAME
+            git -C /tmp/gh-pages-init add CNAME
+            git -C /tmp/gh-pages-init commit -m "Initialize Helm chart repository"
+            git -C /tmp/gh-pages-init push origin gh-pages
+            git worktree remove /tmp/gh-pages-init
+          fi
+
       - name: Package charts
         run: |
           mkdir -p .cr-release-packages
