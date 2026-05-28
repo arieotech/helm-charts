@@ -1,0 +1,28 @@
+## Minimal working install for ct install testing — NOT for production use
+
+replicaCount: 1
+
+keycloak:
+  auth:
+    adminUser: admin
+    adminPassword: changeme-ci-only
+
+## PostgreSQL deployed by bootstrap.sh in keycloak-ci-db namespace
+database:
+  host: keycloak-postgresql.keycloak-ci-db.svc.cluster.local
+  port: 5432
+  name: keycloak
+  username: keycloak
+  password: changeme-ci-only
+
+pdb:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+metrics:
+  enabled: false
+
+soc2:
+  enforceTLS: false

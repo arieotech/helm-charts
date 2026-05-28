@@ -1,0 +1,24 @@
+apiVersion: v2
+name: arieotech-lib
+description: Arieotech library chart — shared Helm helpers for security contexts, NetworkPolicy, ServiceMonitor, PDB, HPA, and RBAC
+type: library
+version: 0.1.0
+keywords:
+  - library
+  - helper
+  - security
+  - psa
+  - networkpolicy
+home: https://github.com/arieotech/helm-charts
+sources:
+  - https://github.com/arieotech/helm-charts/tree/main/charts/arieotech-lib
+maintainers:
+  - name: Arieotech
+    email: helm@arieotech.com
+    url: https://arieotech.com
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/prerelease: "true"
+  artifacthub.io/changes: |
+    - kind: added
+      description: Initial library chart release

@@ -1,0 +1,49 @@
+{{- if and .Values.metrics.enabled .Values.metrics.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "keycloak.fullname" . }}
+  namespace: {{ default .Release.Namespace .Values.metrics.prometheusRule.namespace }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+    {{- with .Values.metrics.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: keycloak.rules
+      rules:
+        - alert: KeycloakDown
+          expr: up{job="{{ include "keycloak.fullname" . }}"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Keycloak instance {{ "{{" }} $labels.instance {{ "}}" }} is down"
+            description: "Keycloak has been down for more than 5 minutes."
+
+        - alert: KeycloakHighMemoryUsage
+          expr: |
+            jvm_memory_used_bytes{area="heap", job="{{ include "keycloak.fullname" . }}"} /
+            jvm_memory_max_bytes{area="heap", job="{{ include "keycloak.fullname" . }}"} > 0.85
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Keycloak JVM heap usage above 85%"
+            description: "Keycloak heap usage is {{ "{{" }} $value | humanizePercentage {{ "}}" }}."
+
+        - alert: KeycloakHighLoginFailureRate
+          expr: |
+            rate(keycloak_failed_login_attempts_total[5m]) > 10
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High Keycloak login failure rate"
+            description: "More than 10 failed logins per second — possible brute-force."
+
+        {{- with .Values.metrics.prometheusRule.additionalRules }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}
