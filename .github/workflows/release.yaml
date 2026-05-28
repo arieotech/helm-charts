@@ -76,6 +76,7 @@ jobs:
 
       - name: Update index on gh-pages
         run: |
+          mkdir -p .cr-index
           cr index \
             --config .cr/cr.yaml \
             --token "${{ secrets.GITHUB_TOKEN }}" \
