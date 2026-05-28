@@ -44,6 +44,7 @@ jobs:
           charts_dir: charts
           config: .cr/cr.yaml
           skip_existing: true
+          packages_with_index: true
 
       - name: Login to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -54,9 +55,12 @@ jobs:
 
       - name: Push charts to GHCR as OCI
         run: |
-          for pkg in .cr-release-packages/*.tgz; do
-            if [ -z "${pkg:-}" ]; then
-              break
-            fi
+          shopt -s nullglob
+          packages=(.cr-release-packages/*.tgz)
+          if [ ${#packages[@]} -eq 0 ]; then
+            echo "No new chart packages to push to GHCR — skipping"
+            exit 0
+          fi
+          for pkg in "${packages[@]}"; do
             helm push "$pkg" "oci://ghcr.io/${{ github.repository_owner }}/charts"
           done
