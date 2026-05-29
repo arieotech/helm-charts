@@ -1,0 +1,6 @@
+repositoryID: ""  # Fill in after registering on Artifact Hub
+owners:
+  - name: Arieotech
+    email: helm@arieotech.com
+ignore:
+  - name: arieotech-lib
