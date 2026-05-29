@@ -3,4 +3,4 @@ owners:
   - name: Arieotech
     email: helm@arieotech.com
 ignore:
-  - name: common
+  - name: arieotech-lib
