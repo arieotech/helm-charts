@@ -4,6 +4,11 @@ All notable changes to this chart are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Chart versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-05-29
+
+### Fixed
+- Icon URL updated to working keycloak.org path (`icon.svg` replaces broken `keycloak_icon_64px.svg`)
+
 ## [0.2.0] - 2026-05-27
 
 ### Fixed

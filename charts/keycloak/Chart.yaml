@@ -5,7 +5,7 @@ description: >
   JSON Schema validation, SOC2 and DPDP compliance defaults.
   Uses the official quay.io/keycloak/keycloak image.
 type: application
-version: 0.2.0
+version: 0.2.1
 appVersion: "26.1.4"
 keywords:
   - keycloak
@@ -18,7 +18,7 @@ home: https://www.keycloak.org
 sources:
   - https://github.com/arieotech/helm-charts/tree/main/charts/keycloak
   - https://github.com/keycloak/keycloak
-icon: https://www.keycloak.org/resources/images/keycloak_icon_64px.svg
+icon: https://www.keycloak.org/resources/images/icon.svg
 maintainers:
   - name: Arieotech
     email: helm@arieotech.com
@@ -32,7 +32,7 @@ annotations:
   artifacthub.io/prerelease: "false"
   artifacthub.io/changes: |
     - kind: fixed
-      description: "JGroups ports corrected to 7800/57800 (Keycloak 25+ — was 7600/57600)"
+      description: "Icon URL updated to working keycloak.org path"
     - kind: fixed
       description: "keycloak.features.tokenExchange and adminFineGrainedAuthz now wire to KC_FEATURES env var"
     - kind: fixed
