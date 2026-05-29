@@ -30,4 +30,5 @@ jobs:
           fi
           curl --fail-with-body -X POST \
             -H "X-api-key: $AH_API_KEY" \
+            -H "Referer: https://artifacthub.io/" \
             "https://artifacthub.io/api/v1/repositories/tracking"
