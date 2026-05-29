@@ -20,22 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Notify Artifact Hub
-        continue-on-error: true
-        env:
-          AH_API_KEY: ${{ secrets.ARTIFACT_HUB_API_KEY }}
+      - name: Log sync intent
         run: |
-          if [ -z "$AH_API_KEY" ]; then
-            echo "ARTIFACT_HUB_API_KEY secret not configured — skipping"
-            exit 0
-          fi
-          HTTP_STATUS=$(curl -s -o /tmp/ah-response.txt -w "%{http_code}" -X POST \
-            -H "X-api-key: $AH_API_KEY" \
-            -H "Referer: https://artifacthub.io/" \
-            -H "Origin: https://artifacthub.io" \
-            "https://artifacthub.io/api/v1/repositories/tracking")
-          echo "HTTP status: $HTTP_STATUS"
-          cat /tmp/ah-response.txt
-          if [ "$HTTP_STATUS" -ge 400 ]; then
-            echo "AH sync returned $HTTP_STATUS — AH will auto-scan within ~30 min regardless"
-          fi
+          echo "artifacthub-repo.yml or a Chart.yaml changed."
+          echo "Artifact Hub auto-scans registered repos every ~30 min — no API call needed."
