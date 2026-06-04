@@ -3,6 +3,68 @@ entries:
   keycloak:
   - annotations:
       artifacthub.io/changes: |
+        - kind: changed
+          description: "Track Keycloak 26.6.2 (upstream app version bump from 26.1.4)"
+        - kind: fixed
+          description: "keycloak.features.tokenExchange and adminFineGrainedAuthz now wire to KC_FEATURES env var"
+        - kind: fixed
+          description: "KC_PROXY_HEADERS and KC_HOSTNAME_STRICT are now configurable via proxy.* values"
+        - kind: added
+          description: "Realm import: realmImport.enabled mounts ConfigMap at /opt/keycloak/data/import"
+        - kind: added
+          description: "dbchecker init container waits for PostgreSQL before Keycloak starts"
+        - kind: added
+          description: "skipInitContainers flag to skip init containers when needed"
+        - kind: added
+          description: "Generic secrets pattern via secrets.* values"
+        - kind: added
+          description: "terminationGracePeriodSeconds configurable (default 60s for Infinispan rebalance)"
+        - kind: added
+          description: "AZ topology spread constraint added to defaults"
+        - kind: changed
+          description: "Startup probe window extended to 315s (15s delay + 60×5s) for large realm imports"
+      artifacthub.io/images: |
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.6.2
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Keycloak documentation
+          url: https://www.keycloak.org/documentation
+      artifacthub.io/prerelease: "false"
+    apiVersion: v2
+    appVersion: 26.6.2
+    created: "2026-06-04T12:23:07.703456302Z"
+    dependencies:
+    - name: arieotech-lib
+      repository: file://../arieotech-lib
+      version: 0.1.0
+    description: 'Production-grade Keycloak IAM. HA clustering, PSA restricted-mode,
+      JSON Schema validation, SOC2 and DPDP compliance defaults. Uses the official
+      quay.io/keycloak/keycloak image. '
+    digest: 637342ef08874d2585f9b9fb60558b2d7eded5bb9addf1213c78e7fa8c326215
+    home: https://www.keycloak.org
+    icon: https://www.keycloak.org/resources/images/icon.svg
+    keywords:
+    - keycloak
+    - iam
+    - sso
+    - oidc
+    - oauth2
+    - identity
+    maintainers:
+    - email: helm@arieotech.com
+      name: Arieotech
+      url: https://arieotech.com
+    name: keycloak
+    sources:
+    - https://github.com/arieotech/helm-charts/tree/main/charts/keycloak
+    - https://github.com/keycloak/keycloak
+    type: application
+    urls:
+    - https://github.com/arieotech/helm-charts/releases/download/keycloak-0.3.0/keycloak-0.3.0.tgz
+    version: 0.3.0
+  - annotations:
+      artifacthub.io/changes: |
         - kind: fixed
           description: "Icon URL updated to working keycloak.org path"
         - kind: fixed
@@ -125,4 +187,4 @@ entries:
     urls:
     - https://github.com/arieotech/helm-charts/releases/download/keycloak-0.2.0/keycloak-0.2.0.tgz
     version: 0.2.0
-generated: "2026-05-29T12:18:54.111183832Z"
+generated: "2026-06-04T12:23:07.703468625Z"
