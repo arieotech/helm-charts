@@ -5,7 +5,7 @@ description: >
   JSON Schema validation, SOC2 and DPDP compliance defaults.
   Uses the official quay.io/keycloak/keycloak image.
 type: application
-version: 0.3.0
+version: 0.3.1
 appVersion: "26.6.2"
 keywords:
   - keycloak
@@ -30,30 +30,20 @@ dependencies:
 annotations:
   artifacthub.io/license: Apache-2.0
   artifacthub.io/prerelease: "false"
+  artifacthub.io/category: security
+  artifacthub.io/containsSecurityUpdates: "false"
   artifacthub.io/changes: |
-    - kind: changed
-      description: "Track Keycloak 26.6.2 (upstream app version bump from 26.1.4)"
-    - kind: fixed
-      description: "keycloak.features.tokenExchange and adminFineGrainedAuthz now wire to KC_FEATURES env var"
-    - kind: fixed
-      description: "KC_PROXY_HEADERS and KC_HOSTNAME_STRICT are now configurable via proxy.* values"
     - kind: added
-      description: "Realm import: realmImport.enabled mounts ConfigMap at /opt/keycloak/data/import"
-    - kind: added
-      description: "dbchecker init container waits for PostgreSQL before Keycloak starts"
-    - kind: added
-      description: "skipInitContainers flag to skip init containers when needed"
-    - kind: added
-      description: "Generic secrets pattern via secrets.* values"
-    - kind: added
-      description: "terminationGracePeriodSeconds configurable (default 60s for Infinispan rebalance)"
-    - kind: added
-      description: "AZ topology spread constraint added to defaults"
-    - kind: changed
-      description: "Startup probe window extended to 315s (15s delay + 60×5s) for large realm imports"
+      description: "Artifact Hub category, links, and metadata annotations"
   artifacthub.io/images: |
     - name: keycloak
       image: quay.io/keycloak/keycloak:26.6.2
   artifacthub.io/links: |
+    - name: Chart source
+      url: https://github.com/arieotech/helm-charts/tree/main/charts/keycloak
+    - name: Keycloak project
+      url: https://www.keycloak.org
     - name: Keycloak documentation
       url: https://www.keycloak.org/documentation
+    - name: Arieotech
+      url: https://arieotech.com
