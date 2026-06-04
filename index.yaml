@@ -2,6 +2,58 @@ apiVersion: v1
 entries:
   keycloak:
   - annotations:
+      artifacthub.io/category: security
+      artifacthub.io/changes: |
+        - kind: added
+          description: "Artifact Hub category, links, and metadata annotations"
+      artifacthub.io/containsSecurityUpdates: "false"
+      artifacthub.io/images: |
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.6.2
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Chart source
+          url: https://github.com/arieotech/helm-charts/tree/main/charts/keycloak
+        - name: Keycloak project
+          url: https://www.keycloak.org
+        - name: Keycloak documentation
+          url: https://www.keycloak.org/documentation
+        - name: Arieotech
+          url: https://arieotech.com
+      artifacthub.io/prerelease: "false"
+    apiVersion: v2
+    appVersion: 26.6.2
+    created: "2026-06-04T14:28:12.476322638Z"
+    dependencies:
+    - name: arieotech-lib
+      repository: file://../arieotech-lib
+      version: 0.1.0
+    description: 'Production-grade Keycloak IAM. HA clustering, PSA restricted-mode,
+      JSON Schema validation, SOC2 and DPDP compliance defaults. Uses the official
+      quay.io/keycloak/keycloak image. '
+    digest: 9746e7c2b5774fb3c8ec18e5cfe58318a8f4769da8d48a32e2b9823d5f3aad60
+    home: https://www.keycloak.org
+    icon: https://www.keycloak.org/resources/images/icon.svg
+    keywords:
+    - keycloak
+    - iam
+    - sso
+    - oidc
+    - oauth2
+    - identity
+    maintainers:
+    - email: helm@arieotech.com
+      name: Arieotech
+      url: https://arieotech.com
+    name: keycloak
+    sources:
+    - https://github.com/arieotech/helm-charts/tree/main/charts/keycloak
+    - https://github.com/keycloak/keycloak
+    type: application
+    urls:
+    - https://github.com/arieotech/helm-charts/releases/download/keycloak-0.3.1/keycloak-0.3.1.tgz
+    version: 0.3.1
+  - annotations:
       artifacthub.io/changes: |
         - kind: changed
           description: "Track Keycloak 26.6.2 (upstream app version bump from 26.1.4)"
@@ -187,4 +239,4 @@ entries:
     urls:
     - https://github.com/arieotech/helm-charts/releases/download/keycloak-0.2.0/keycloak-0.2.0.tgz
     version: 0.2.0
-generated: "2026-06-04T12:23:07.703468625Z"
+generated: "2026-06-04T14:28:12.476342074Z"
