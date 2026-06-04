@@ -5,8 +5,8 @@ description: >
   JSON Schema validation, SOC2 and DPDP compliance defaults.
   Uses the official quay.io/keycloak/keycloak image.
 type: application
-version: 0.2.1
-appVersion: "26.1.4"
+version: 0.3.0
+appVersion: "26.6.2"
 keywords:
   - keycloak
   - iam
@@ -31,8 +31,8 @@ annotations:
   artifacthub.io/license: Apache-2.0
   artifacthub.io/prerelease: "false"
   artifacthub.io/changes: |
-    - kind: fixed
-      description: "Icon URL updated to working keycloak.org path"
+    - kind: changed
+      description: "Track Keycloak 26.6.2 (upstream app version bump from 26.1.4)"
     - kind: fixed
       description: "keycloak.features.tokenExchange and adminFineGrainedAuthz now wire to KC_FEATURES env var"
     - kind: fixed
@@ -53,7 +53,7 @@ annotations:
       description: "Startup probe window extended to 315s (15s delay + 60×5s) for large realm imports"
   artifacthub.io/images: |
     - name: keycloak
-      image: quay.io/keycloak/keycloak:26.1.4
+      image: quay.io/keycloak/keycloak:26.6.2
   artifacthub.io/links: |
     - name: Keycloak documentation
       url: https://www.keycloak.org/documentation

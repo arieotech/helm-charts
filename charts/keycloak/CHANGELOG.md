@@ -4,6 +4,11 @@ All notable changes to this chart are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Chart versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-06-04
+
+### Changed
+- Track Keycloak 26.6.2 (upstream app version bump from 26.1.4)
+
 ## [0.2.1] - 2026-05-29
 
 ### Fixed
