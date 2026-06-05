@@ -91,7 +91,7 @@ jobs:
           for pkg in "${packages[@]}"; do
             cosign sign-blob \
               --key env://COSIGN_PRIVATE_KEY \
-              --output-signature "${pkg}.sig" \
+              --bundle "${pkg}.sig" \
               "$pkg"
           done
 
