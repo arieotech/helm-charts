@@ -45,6 +45,9 @@ jobs:
             -o /tmp/cr.tar.gz
           tar -xzf /tmp/cr.tar.gz -C /usr/local/bin cr
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
       - name: Bootstrap gh-pages branch
         run: |
           if ! git ls-remote --exit-code origin gh-pages 2>/dev/null; then
@@ -73,6 +76,40 @@ jobs:
             --token "${{ secrets.GITHUB_TOKEN }}" \
             --skip-existing \
             --package-path .cr-release-packages
+
+      - name: Sign chart packages
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          shopt -s nullglob
+          packages=(.cr-release-packages/*.tgz)
+          if [ ${#packages[@]} -eq 0 ]; then
+            echo "No packages to sign — skipping"
+            exit 0
+          fi
+          for pkg in "${packages[@]}"; do
+            cosign sign-blob \
+              --key env://COSIGN_PRIVATE_KEY \
+              --output-signature "${pkg}.sig" \
+              "$pkg"
+          done
+
+      - name: Upload signatures to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob
+          sigs=(.cr-release-packages/*.tgz.sig)
+          if [ ${#sigs[@]} -eq 0 ]; then
+            echo "No signatures to upload — skipping"
+            exit 0
+          fi
+          for sig in "${sigs[@]}"; do
+            tag="$(basename "${sig%.tgz.sig}")"
+            echo "Uploading $(basename $sig) to release ${tag}"
+            gh release upload "$tag" "$sig" --clobber --repo "${{ github.repository }}"
+          done
 
       - name: Update index on gh-pages
         run: |
