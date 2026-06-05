@@ -2,5 +2,12 @@ repositoryID: "18020064-c854-4ebc-8afb-dd33cca56a1c"
 owners:
   - name: Arieotech
     email: helm@arieotech.com
+signedBy:
+  method: cosign
+  publicKey: |
+    -----BEGIN PUBLIC KEY-----
+    MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhJynJ8YvPiUfKlW7uAXGnbeMG0KU
+    zLQzm305ZVp4g3j6FZsYJfqmSL4Ow5i9mjaGGRiw93MbP03ghDe9g8roiQ==
+    -----END PUBLIC KEY-----
 ignore:
   - name: arieotech-lib
