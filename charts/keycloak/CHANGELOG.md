@@ -4,6 +4,11 @@ All notable changes to this chart are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Chart versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.2] - 2026-06-05
+
+### Changed
+- Expanded README with troubleshooting guide, performance tuning section, External Secrets Operator guide, production checklist, and full configuration reference
+
 ## [0.3.1] - 2026-06-04
 
 ### Added
