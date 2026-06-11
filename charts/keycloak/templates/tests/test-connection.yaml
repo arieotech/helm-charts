@@ -25,7 +25,15 @@ spec:
           drop:
             - ALL
       command:
-        - wget
-        - --spider
-        - --timeout=10
-        - "http://{{ include "keycloak.fullname" . }}:{{ .Values.service.port }}{{ .Values.keycloak.http.relativePath }}"
+        - sh
+        - -c
+        - |
+          URL="http://{{ include "keycloak.fullname" . }}:{{ .Values.service.port }}{{ .Values.keycloak.http.relativePath }}"
+          i=0
+          until wget -q --spider --timeout=10 "$URL"; do
+            i=$((i+1))
+            [ $i -ge 6 ] && echo "FAIL: timed out after 60s" && exit 1
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Connection successful"
