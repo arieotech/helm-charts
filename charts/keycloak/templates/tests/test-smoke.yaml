@@ -1,0 +1,194 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ printf "%s-test-smoke" (include "keycloak.fullname" .) }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: smoke
+      image: curlimages/curl:8.7.1
+      imagePullPolicy: IfNotPresent
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+      resources:
+        requests:
+          cpu: 50m
+          memory: 32Mi
+        limits:
+          memory: 64Mi
+      env:
+        - name: KC_BASE
+          value: "http://{{ include "keycloak.fullname" . }}:{{ .Values.service.port }}{{ .Values.keycloak.http.relativePath | trimSuffix "/" }}"
+        - name: KC_MGMT
+          value: "http://{{ include "keycloak.fullname" . }}:9000"
+        - name: KC_ADMIN_USER
+          value: {{ .Values.keycloak.auth.adminUser | quote }}
+        - name: KC_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "keycloak.adminSecretName" . }}
+              key: {{ .Values.keycloak.auth.existingSecretKey | default "admin-password" }}
+      command:
+        - sh
+        - -c
+        - |
+          PASS=0; FAIL=0; REALM="helm-smoke"
+
+          ok()   { printf '  PASS: %s\n' "$1";           PASS=$((PASS+1)); }
+          fail() { printf '  FAIL: %s  [%s]\n' "$1" "${2:-}"; FAIL=$((FAIL+1)); }
+
+          ##############################################################
+          # 1. Management health (port 9000 — not the HTTP service port)
+          ##############################################################
+          echo "--- health ---"
+          H=$(curl -s -o /dev/null -w '%{http_code}' "$KC_MGMT/health/ready")
+          [ "$H" = "200" ] && ok "health/ready -> $H" || fail "health/ready" "$H"
+
+          H=$(curl -s -o /dev/null -w '%{http_code}' "$KC_MGMT/health/live")
+          [ "$H" = "200" ] && ok "health/live -> $H"  || fail "health/live" "$H"
+
+          ##############################################################
+          # 2. Admin token (master realm)
+          ##############################################################
+          echo "--- admin token ---"
+          AT=$(curl -s -X POST "$KC_BASE/realms/master/protocol/openid-connect/token" \
+            --data-urlencode "client_id=admin-cli" \
+            --data-urlencode "grant_type=password" \
+            --data-urlencode "username=${KC_ADMIN_USER}" \
+            --data-urlencode "password=${KC_ADMIN_PASSWORD}" \
+            | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+          [ -n "$AT" ] && ok "admin token (${#AT} chars)" || fail "admin token empty"
+
+          ##############################################################
+          # 3. Realm lifecycle
+          ##############################################################
+          echo "--- realm ---"
+          # Pre-cleanup: delete stale smoke realm from a previous failed run
+          curl -s -o /dev/null -X DELETE "$KC_BASE/admin/realms/$REALM" \
+            -H "Authorization: Bearer $AT" || true
+
+          H=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$KC_BASE/admin/realms" \
+            -H "Authorization: Bearer $AT" -H "Content-Type: application/json" \
+            -d "{\"realm\":\"${REALM}\",\"enabled\":true}")
+          [ "$H" = "201" ] && ok "create realm -> $H" || fail "create realm" "$H"
+
+          FOUND=$(curl -s -H "Authorization: Bearer $AT" "$KC_BASE/admin/realms" \
+            | grep -c "\"realm\":\"${REALM}\"" || true)
+          [ "${FOUND:-0}" -ge 1 ] && ok "realm in list" || fail "realm not in list"
+
+          ##############################################################
+          # 4. OIDC client
+          ##############################################################
+          echo "--- client ---"
+          H=$(curl -s -o /dev/null -w '%{http_code}' \
+            -X POST "$KC_BASE/admin/realms/${REALM}/clients" \
+            -H "Authorization: Bearer $AT" -H "Content-Type: application/json" \
+            -d '{"clientId":"smoke-client","enabled":true,"publicClient":true,
+                 "directAccessGrantsEnabled":true,
+                 "defaultClientScopes":["openid","profile","email"]}')
+          [ "$H" = "201" ] && ok "create client -> $H" || fail "create client" "$H"
+
+          ##############################################################
+          # 5. User with full profile
+          # KC 26.x VERIFY_PROFILE authenticator requires firstName, lastName,
+          # email, and emailVerified:true for direct grant to succeed.
+          ##############################################################
+          echo "--- user ---"
+          H=$(curl -s -o /dev/null -w '%{http_code}' \
+            -X POST "$KC_BASE/admin/realms/${REALM}/users" \
+            -H "Authorization: Bearer $AT" -H "Content-Type: application/json" \
+            -d '{"username":"smokeuser","firstName":"Smoke","lastName":"Test",
+                 "email":"smoke@helm.test","emailVerified":true,"enabled":true}')
+          [ "$H" = "201" ] && ok "create user -> $H" || fail "create user" "$H"
+
+          MYUID=$(curl -s -H "Authorization: Bearer $AT" \
+            "$KC_BASE/admin/realms/${REALM}/users?username=smokeuser" \
+            | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+          [ -n "$MYUID" ] && ok "resolve user ID" || fail "user ID empty"
+
+          H=$(curl -s -o /dev/null -w '%{http_code}' \
+            -X PUT "$KC_BASE/admin/realms/${REALM}/users/${MYUID}/reset-password" \
+            -H "Authorization: Bearer $AT" -H "Content-Type: application/json" \
+            -d '{"type":"password","value":"SmokePass1","temporary":false}')
+          [ "$H" = "204" ] && ok "set password -> $H" || fail "set password" "$H"
+
+          ##############################################################
+          # 6. OIDC direct grant token flow (scope=openid required for id_token)
+          ##############################################################
+          echo "--- OIDC token flow ---"
+          TRESP=$(curl -s -X POST "$KC_BASE/realms/${REALM}/protocol/openid-connect/token" \
+            --data-urlencode "client_id=smoke-client" \
+            --data-urlencode "grant_type=password" \
+            --data-urlencode "username=smokeuser" \
+            --data-urlencode "password=SmokePass1" \
+            --data-urlencode "scope=openid")
+          AT_U=$(printf '%s' "$TRESP" | grep -o '"access_token":"[^"]*'  | cut -d'"' -f4)
+          ID_T=$(printf '%s' "$TRESP" | grep -o '"id_token":"[^"]*'      | cut -d'"' -f4)
+          RT=$(printf  '%s' "$TRESP" | grep -o '"refresh_token":"[^"]*'  | cut -d'"' -f4)
+          ERR=$(printf '%s' "$TRESP" | grep -o '"error":"[^"]*'          | cut -d'"' -f4)
+          [ -n "$AT_U" ] && ok "access_token (${#AT_U} chars)" || fail "access_token"  "$ERR"
+          [ -n "$ID_T" ] && ok "id_token present"               || fail "id_token missing"
+          [ -n "$RT"   ] && ok "refresh_token present"          || fail "refresh_token missing"
+
+          ##############################################################
+          # 7. Userinfo — validates the access token is accepted
+          ##############################################################
+          echo "--- userinfo ---"
+          H=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $AT_U" \
+            "$KC_BASE/realms/${REALM}/protocol/openid-connect/userinfo")
+          [ "$H" = "200" ] && ok "userinfo -> $H" || fail "userinfo" "$H"
+
+          ##############################################################
+          # 8. Token refresh
+          ##############################################################
+          echo "--- token refresh ---"
+          RRESP=$(curl -s -X POST "$KC_BASE/realms/${REALM}/protocol/openid-connect/token" \
+            --data-urlencode "client_id=smoke-client" \
+            --data-urlencode "grant_type=refresh_token" \
+            --data-urlencode "refresh_token=${RT}")
+          NAT=$(printf '%s' "$RRESP" | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+          [ -n "$NAT" ] && ok "refreshed access_token (${#NAT} chars)" \
+            || fail "token refresh" "$(printf '%s' "$RRESP" | grep -o '"error":"[^"]*' | cut -d'"' -f4)"
+
+          ##############################################################
+          # 9. Logout (revoke session)
+          ##############################################################
+          echo "--- logout ---"
+          H=$(curl -s -o /dev/null -w '%{http_code}' \
+            -X POST "$KC_BASE/realms/${REALM}/protocol/openid-connect/logout" \
+            --data-urlencode "client_id=smoke-client" \
+            --data-urlencode "refresh_token=${RT}")
+          [ "$H" = "204" ] && ok "logout -> $H" || fail "logout" "$H"
+
+          ##############################################################
+          # 10. Cleanup
+          ##############################################################
+          echo "--- cleanup ---"
+          H=$(curl -s -o /dev/null -w '%{http_code}' \
+            -X DELETE "$KC_BASE/admin/realms/${REALM}" \
+            -H "Authorization: Bearer $AT")
+          [ "$H" = "204" ] && ok "delete smoke realm -> $H" || fail "delete smoke realm" "$H"
+
+          ##############################################################
+          # Result
+          ##############################################################
+          echo ""
+          echo "========================================"
+          printf 'Results: %s passed, %s failed\n' "$PASS" "$FAIL"
+          [ "$FAIL" = "0" ]

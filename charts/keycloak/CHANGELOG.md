@@ -4,6 +4,60 @@ All notable changes to this chart are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Chart versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.3] - 2026-06-11
+
+### Changed
+- **README overhaul** — added Table of Contents, "How HA clustering works" architecture section,
+  full "Installing the Chart" section with production and dry-run patterns, "Testing" section
+  documenting `helm test` and smoke test coverage, "Upgrading" section with 0.3.3 migration notes,
+  "Istio Ambient Mesh" section, and parameter tables for `dbchecker`, `soc2`, and `dpdp`. All
+  configuration keys now have corresponding table entries; no undocumented values remain.
+
+### Fixed
+
+- **`readOnlyRootFilesystem` crash on startup** — Keycloak's Quarkus runtime writes
+  `transformed-bytecode.jar` to `/opt/keycloak/lib/quarkus/` on every cold start when
+  the env-var configuration differs from the pre-built image defaults. With
+  `readOnlyRootFilesystem: true` (our PSA baseline) this caused an immediate crash loop.
+  Fixed by adding an `init-quarkus` init container that copies the pre-built Quarkus lib
+  into a writable `quarkus-lib` emptyDir, which the main container mounts at the same
+  path. Uses `cp -r` (not `cp -rp` — `-p` fails as non-root on a root-owned emptyDir).
+
+- **`KC_HEALTH_ENABLED` missing — all probes failed on every install** — Keycloak 26.x
+  does not expose `/health/*` on port 9000 unless `KC_HEALTH_ENABLED=true` is explicitly
+  set. Without it the startup, liveness, and readiness probes all returned "connection
+  refused", causing the StatefulSet to never reach Ready state. `KC_HEALTH_ENABLED=true`
+  is now set unconditionally. `KC_METRICS_ENABLED=true` is also added when
+  `metrics.enabled=true` so the `/metrics` endpoint is actually active.
+
+- **Management port 9000 missing from main Service** — the main ClusterIP Service only
+  exposed HTTP (80) and HTTPS (443). Port 9000 (Keycloak management interface) was absent,
+  so Prometheus ServiceMonitors configured with `port: management` could not scrape
+  `/metrics`, and `helm test` pods could not reach `/health/*`. Port 9000 is now a named
+  `management` port on the main Service.
+
+- **Headless Service JGroups port was 7600 (wrong)** — Keycloak 25+ changed the
+  Infinispan JGroups bind port from 7600/57600 to 7800/57800. The NetworkPolicy was
+  updated in v0.2.0 but the headless Service still exposed 7600. Fixed to 7800 + 57800.
+
+### Added
+
+- **Full OIDC E2E smoke test** (`templates/tests/test-smoke.yaml`) — runs as part of
+  `helm test` (and therefore `ct install` in CI). Covers:
+  - Health checks on management port 9000 (`/health/ready`, `/health/live`)
+  - Admin token acquisition (master realm)
+  - Realm create → verify in list
+  - Public OIDC client creation
+  - User creation with full profile (`firstName`, `lastName`, `email`,
+    `emailVerified: true` — required by KC 26.x `VERIFY_PROFILE` authenticator for
+    direct grant to succeed)
+  - Password set via reset-password endpoint
+  - OIDC direct grant with `scope=openid` → access_token + id_token + refresh_token
+  - Userinfo endpoint (HTTP 200)
+  - Token refresh
+  - Logout (session revocation)
+  - Realm cleanup
+
 ## [0.3.2] - 2026-06-05
 
 ### Changed
