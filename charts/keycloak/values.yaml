@@ -351,6 +351,11 @@ topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: kubernetes.io/hostname
     whenUnsatisfiable: DoNotSchedule
+    ## Honor node taints so tainted nodes (e.g. control-plane) are excluded from
+    ## the domain count. Without this, a tainted node with 0 pods inflates the skew
+    ## and blocks scheduling on schedulable nodes (k8s 1.27+).
+    nodeTaintsPolicy: Honor
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: ScheduleAnyway
+    nodeTaintsPolicy: Honor

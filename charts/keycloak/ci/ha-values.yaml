@@ -27,3 +27,8 @@ autoscaling:
 
 soc2:
   enforceTLS: false
+
+## kind CI cluster has 1 tainted control-plane + 2 workers.
+## Topology spread is a production concern — disable it in CI so 3 replicas
+## can schedule freely on 2 worker nodes.
+topologySpreadConstraints: null
