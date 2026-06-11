@@ -56,14 +56,25 @@ jobs:
         if: steps.list-changed.outputs.changed == 'true'
         run: ct lint --config .ct/ct.yaml
 
+      - name: Pre-pull kind node image
+        if: steps.list-changed.outputs.changed == 'true'
+        run: |
+          IMAGE="kindest/node:v1.35.0"
+          for i in 1 2 3 4 5; do
+            docker pull "$IMAGE" && break
+            [ $i -eq 5 ] && { echo "ERROR: failed to pull $IMAGE after 5 attempts"; exit 1; }
+            echo "Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
+
       - name: Create kind cluster
         if: steps.list-changed.outputs.changed == 'true'
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
         with:
           config: test/kind-cluster/kind-config.yaml
-          ## ECR Public avoids Docker Hub pull rate limits on GitHub Actions runners.
-          ## Tag: k8s v1.35.2, EKS Distro 1.35-8, EKS Anywhere build 120.
-          node_image: public.ecr.aws/eks-anywhere/kubernetes-sigs/kind/node:v1.35.2-eks-d-1-35-8-eks-a-120
+          ## Use the standard kindest/node image (k8s v1.35.0, compatible with kind v0.31.0).
+          ## Pre-pull step above handles transient Docker Hub connectivity failures with retry.
+          node_image: kindest/node:v1.35.0
 
       - name: Bootstrap cluster prerequisites
         if: steps.list-changed.outputs.changed == 'true'
