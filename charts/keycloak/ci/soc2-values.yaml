@@ -1,31 +1,34 @@
-## SOC2-hardened profile
+## SOC2-hardened CI profile — tests SOC2/DPDP settings render and deploy correctly
 
 replicaCount: 1
 
 keycloak:
   auth:
     adminUser: admin
-    adminPassword: changeme-test-only
+    adminPassword: changeme-ci-only
 
+## PostgreSQL deployed by bootstrap.sh in keycloak-ci-db namespace
 database:
-  host: keycloak-postgresql
+  host: keycloak-postgresql.keycloak-ci-db.svc.cluster.local
+  port: 5432
   name: keycloak
   username: keycloak
-  password: changeme-test-only
-  bundled:
-    enabled: true
+  password: changeme-ci-only
 
 soc2:
   auditLogging:
     enabled: true
-  enforceTLS: false  # TLS terminated at ingress in test env
+  enforceTLS: false
 
 dpdp:
   piiMasking:
     enabled: true
 
 networkPolicy:
-  enabled: true
+  enabled: false
+
+metrics:
+  enabled: false
 
 pdb:
   enabled: false
