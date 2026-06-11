@@ -205,8 +205,10 @@ spec:
               mountPath: /tmp
             - name: data
               mountPath: /opt/keycloak/data
+            {{- if not .Values.skipInitContainers }}
             - name: quarkus-lib
               mountPath: /opt/keycloak/lib/quarkus
+            {{- end }}
             {{- if .Values.realmImport.enabled }}
             - name: realm-import
               mountPath: /opt/keycloak/data/import
@@ -223,8 +225,10 @@ spec:
           emptyDir: {}
         - name: data
           emptyDir: {}
+        {{- if not .Values.skipInitContainers }}
         - name: quarkus-lib
           emptyDir: {}
+        {{- end }}
         {{- if .Values.realmImport.enabled }}
         - name: realm-import
           configMap:

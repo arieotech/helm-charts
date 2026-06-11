@@ -308,7 +308,7 @@ The `dbchecker` init container polls PostgreSQL before Keycloak starts, preventi
 | `dbchecker.enabled` | `false` | Enable the DB checker init container |
 | `dbchecker.image.repository` | `busybox` | Init container image |
 | `dbchecker.image.tag` | `1.37` | Init container image tag |
-| `skipInitContainers` | `false` | Skip all init containers — relies on Keycloak's own retry loop |
+| `skipInitContainers` | `false` | Skip all init containers — relies on Keycloak's own retry loop. **Requires `securityContext.readOnlyRootFilesystem: false`** — the `init-quarkus` container that populates `/opt/keycloak/lib/quarkus` is also skipped, so Keycloak will fail to start if the filesystem is read-only. |
 
 **Recommended for production:**
 
@@ -824,8 +824,7 @@ All test pods run under PSA restricted mode (`readOnlyRootFilesystem: true`, `ru
 |------|---------|
 | `ci/default-values.yaml` | Minimal install for `ct install` — single replica, CI database |
 | `ci/ha-values.yaml` | 3-replica HA mode |
-| `ci/istio-ambient-values.yaml` | Istio Ambient pod labels |
-| `ci/soc2-values.yaml` | SOC2 hardened — TLS enforced, audit logging on |
+| `ci/soc2-values.yaml` | SOC2/DPDP settings — audit logging on, PII masking enabled |
 
 ---
 
