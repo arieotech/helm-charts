@@ -4,6 +4,18 @@ All notable changes to this chart are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Chart versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.4] - 2026-06-11
+
+### Fixed
+
+- **`KC_HEALTH_ENABLED` / `KC_METRICS_ENABLED` duplicate env keys** — when either variable was
+  already declared in `keycloak.extraEnv`, the chart rendered a second entry for the same name.
+  Kubernetes rejects pods with duplicate `env` keys with a validation error on `helm upgrade`.
+  The template now collects all names from `extraEnv` first and only emits the managed variables
+  when they are not already present.
+
+---
+
 ## [0.3.3] - 2026-06-11
 
 ### Changed
