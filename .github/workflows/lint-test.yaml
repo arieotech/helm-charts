@@ -61,8 +61,9 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
         with:
           config: test/kind-cluster/kind-config.yaml
-          ## ghcr.io avoids Docker Hub pull rate limits on GitHub Actions runners
-          node_image: ghcr.io/kindest/node:v1.35.0
+          ## ECR Public avoids Docker Hub pull rate limits on GitHub Actions runners.
+          ## Tag: k8s v1.35.2, EKS Distro 1.35-8, EKS Anywhere build 120.
+          node_image: public.ecr.aws/eks-anywhere/kubernetes-sigs/kind/node:v1.35.2-eks-d-1-35-8-eks-a-120
 
       - name: Bootstrap cluster prerequisites
         if: steps.list-changed.outputs.changed == 'true'
