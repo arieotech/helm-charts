@@ -53,6 +53,7 @@ spec:
 
           ok()   { printf '  PASS: %s\n' "$1";           PASS=$((PASS+1)); }
           fail() { printf '  FAIL: %s  [%s]\n' "$1" "${2:-}"; FAIL=$((FAIL+1)); }
+          curl() { command curl --max-time 30 --connect-timeout 10 "$@"; }
 
           ##############################################################
           # 1. Management health (port 9000 — not the HTTP service port)
