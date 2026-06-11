@@ -20,6 +20,12 @@ spec:
       port: {{ .Values.service.httpsPort }}
       targetPort: https
       protocol: TCP
+    ## Management port: health checks (/health/*) and metrics (/metrics) for
+    ## Prometheus ServiceMonitor and helm test smoke pod.
+    - name: management
+      port: 9000
+      targetPort: management
+      protocol: TCP
   selector:
     {{- include "keycloak.selectorLabels" . | nindent 4 }}
 ---
@@ -43,9 +49,12 @@ spec:
       port: 9000
       targetPort: management
       protocol: TCP
-    ## JGroups PING port for Infinispan clustering
+    ## JGroups ports for Infinispan clustering — Keycloak 25+ uses 7800/57800
     - name: jgroups
-      port: 7600
+      port: 7800
+      protocol: TCP
+    - name: jgroups-fd
+      port: 57800
       protocol: TCP
   selector:
     {{- include "keycloak.selectorLabels" . | nindent 4 }}
