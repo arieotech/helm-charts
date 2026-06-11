@@ -10,6 +10,8 @@ metadata:
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   restartPolicy: Never
+  serviceAccountName: {{ include "keycloak.serviceAccountName" . }}
+  automountServiceAccountToken: false
   securityContext:
     runAsNonRoot: true
     runAsUser: 65534
