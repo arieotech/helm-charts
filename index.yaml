@@ -5,6 +5,58 @@ entries:
       artifacthub.io/category: security
       artifacthub.io/changes: |
         - kind: fixed
+          description: "KC_HEALTH_ENABLED and KC_METRICS_ENABLED no longer duplicated when also set via keycloak.extraEnv"
+      artifacthub.io/containsSecurityUpdates: "false"
+      artifacthub.io/images: |
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.6.2
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Chart source
+          url: https://github.com/arieotech/helm-charts/tree/main/charts/keycloak
+        - name: Keycloak project
+          url: https://www.keycloak.org
+        - name: Keycloak documentation
+          url: https://www.keycloak.org/documentation
+        - name: Arieotech
+          url: https://arieotech.com
+      artifacthub.io/prerelease: "false"
+    apiVersion: v2
+    appVersion: 26.6.2
+    created: "2026-06-12T10:43:28.342461057Z"
+    dependencies:
+    - name: arieotech-lib
+      repository: file://../arieotech-lib
+      version: 0.1.0
+    description: 'Production-grade Keycloak IAM. HA clustering, PSA restricted-mode,
+      JSON Schema validation, SOC2 and DPDP compliance defaults. Uses the official
+      quay.io/keycloak/keycloak image. '
+    digest: d16f65a9dda060d20286840747d0a903b3e08fdc73c0bd04e3aab4ee986312bf
+    home: https://www.keycloak.org
+    icon: https://www.keycloak.org/resources/images/icon.svg
+    keywords:
+    - keycloak
+    - iam
+    - sso
+    - oidc
+    - oauth2
+    - identity
+    maintainers:
+    - email: helm@arieotech.com
+      name: Arieotech
+      url: https://arieotech.com
+    name: keycloak
+    sources:
+    - https://github.com/arieotech/helm-charts/tree/main/charts/keycloak
+    - https://github.com/keycloak/keycloak
+    type: application
+    urls:
+    - https://github.com/arieotech/helm-charts/releases/download/keycloak-0.3.4/keycloak-0.3.4.tgz
+    version: 0.3.4
+  - annotations:
+      artifacthub.io/category: security
+      artifacthub.io/changes: |
+        - kind: fixed
           description: "readOnlyRootFilesystem crash: init-quarkus init container copies Quarkus lib to writable emptyDir"
         - kind: fixed
           description: "KC_HEALTH_ENABLED and KC_METRICS_ENABLED were missing, causing all health probes to fail"
@@ -351,4 +403,4 @@ entries:
     urls:
     - https://github.com/arieotech/helm-charts/releases/download/keycloak-0.2.0/keycloak-0.2.0.tgz
     version: 0.2.0
-generated: "2026-06-11T11:48:15.788724857Z"
+generated: "2026-06-12T10:43:28.343110384Z"
