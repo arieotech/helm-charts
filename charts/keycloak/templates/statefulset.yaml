@@ -165,10 +165,18 @@ spec:
             ## JVM tuning
             - name: JAVA_OPTS_APPEND
               value: {{ .Values.keycloak.javaOpts | quote }}
-            ## Health and metrics — required for probes on management port 9000
+            {{- /* Build a set of names already declared in extraEnv so we never emit duplicates. */ -}}
+            {{- $extraEnvNames := list -}}
+            {{- range .Values.keycloak.extraEnv -}}
+              {{- $extraEnvNames = append $extraEnvNames .name -}}
+            {{- end }}
+            ## Health and metrics — required for probes on management port 9000.
+            ## Skipped when already present in keycloak.extraEnv to avoid duplicate-key errors.
+            {{- if not (has "KC_HEALTH_ENABLED" $extraEnvNames) }}
             - name: KC_HEALTH_ENABLED
               value: "true"
-            {{- if .Values.metrics.enabled }}
+            {{- end }}
+            {{- if and .Values.metrics.enabled (not (has "KC_METRICS_ENABLED" $extraEnvNames)) }}
             - name: KC_METRICS_ENABLED
               value: "true"
             {{- end }}
