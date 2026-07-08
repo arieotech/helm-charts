@@ -72,10 +72,10 @@ echo "==> Waiting for PostgreSQL to be ready..."
 kubectl wait --for=condition=available --timeout=90s deployment/keycloak-postgresql -n keycloak-ci-db
 
 echo "==> Pre-applying KEDA CRDs (required by keda chart CI — operator crashes without them)"
-# Apply via kubectl so there is no Helm release ownership conflict when ct install
-# subsequently tests the keda-crds chart using helm upgrade --install.
-for crd in charts/keda-crds/templates/crds/*.yaml; do
-  kubectl apply --server-side -f "$crd"
-done
+# Render via `helm template` (files under templates/crds/ use Go template syntax,
+# e.g. {{- with .Values.commonAnnotations }}, so kubectl can't apply them directly)
+# then apply via kubectl so there is no Helm release ownership conflict when ct
+# install subsequently tests the keda-crds chart using helm upgrade --install.
+helm template keda-crds-preapply charts/keda-crds | kubectl apply --server-side -f -
 
 echo "==> Bootstrap complete"
