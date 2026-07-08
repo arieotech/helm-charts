@@ -46,9 +46,12 @@ operator:
   watchNamespace: "production,staging"
 ```
 
-With this setting, KEDA only processes `ScaledObject` and `ScaledJob` resources in the listed
-namespaces, making it safe to run in shared multi-tenant clusters where cluster-wide watch
-would be inappropriate.
+With this setting, KEDA only *reconciles* `ScaledObject` and `ScaledJob` resources in the
+listed namespaces. This is a reconciliation-scope control, not an RBAC boundary — the
+operator's ClusterRole/ClusterRoleBinding still grant cluster-wide permissions regardless
+of this setting, since Kubernetes RBAC has no per-namespace restriction mechanism for a
+ClusterRoleBinding. Use it to avoid the operator acting on ScaledObjects outside its
+intended scope, not as a tenant-isolation security control.
 
 ## Values Reference
 
@@ -81,6 +84,7 @@ would be inappropriate.
 | `terminationGracePeriodSeconds` | int | `30` | Grace period for in-flight ScaledObject reconciliations on shutdown |
 | `topologySpreadConstraints` | list | hostname + zone | Spread pods across nodes and AZs |
 | `networkPolicy.enabled` | bool | `true` | Deploy NetworkPolicy resources |
+| `networkPolicy.kubeApiServerCIDR` | string | `""` | Restrict the API server egress rule to this CIDR (e.g. `"10.0.0.1/32"`); unset allows HTTPS egress to any destination on 443/6443 — see [NetworkPolicy](#networkpolicy) |
 | `networkPolicy.extraIngress` / `extraEgress` | list | `[]` | Additional rules appended to the default allow-list |
 | `pdb.enabled` | bool | `true` | Deploy PodDisruptionBudget |
 | `pdb.minAvailable` | int | `1` | Minimum available pods per component |
@@ -149,6 +153,31 @@ Adjust `secretName` and `dnsNames` to match your actual release name and Service
 Without cert-manager, populate the same Secret via External Secrets Operator or a
 manually managed TLS Secret.
 
+## NetworkPolicy
+
+Every component's egress rules stop at DNS and an "allow the Kubernetes API server" rule
+on 443/6443 — but that API server rule is **port-only by default**, not destination-restricted.
+Kubernetes NetworkPolicy has no generic pod or namespace selector for the API server (it
+typically runs outside the pod network, e.g. on control-plane nodes or behind a cloud LB),
+so a rule with only `ports` and no `to:` matches **any destination** on that port. In
+practice this means HTTPS egress to any host on 443/6443 is allowed out of the box, not
+just to the API server.
+
+To actually restrict it, set `networkPolicy.kubeApiServerCIDR` to your API server's IP:
+
+```bash
+kubectl get endpoints kubernetes -n default -o jsonpath='{.subsets[0].addresses[*].ip}'
+```
+
+```yaml
+networkPolicy:
+  kubeApiServerCIDR: "10.0.0.1/32"
+```
+
+Once set, that rule becomes `to: [{ ipBlock: { cidr: ... } }]` and no longer permits
+arbitrary HTTPS egress. This isn't set by default because the API server's address is
+cluster-specific and not knowable ahead of time by a generic chart.
+
 ## Deploying with ArgoCD
 
 `keda-crds` must be installed (and healthy) before `keda`, since the operator and
@@ -193,8 +222,10 @@ comma-separated with no spaces (e.g. `"production,staging"`, not `"production, s
 Restart the operator pods after changing this value — it is read at process start.
 
 **NetworkPolicy blocking scaler connectivity:** `networkPolicy.enabled=true` ships a
-default-deny egress policy. Add your scaler's target (Redis, RabbitMQ, Kafka, etc.) via
-`networkPolicy.extraEgress`.
+default-deny egress policy for everything *except* DNS and HTTPS to 443/6443 (see
+[NetworkPolicy](#networkpolicy) for why that HTTPS rule is broader than "API server only"
+by default). For non-HTTPS trigger sources (e.g. plain RabbitMQ/Kafka ports), add a rule
+via `networkPolicy.extraEgress`.
 
 ## Production Checklist
 

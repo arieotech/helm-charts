@@ -1,9 +1,10 @@
 ## ClusterRole for the KEDA operator.
-## The operator watches ScaledObjects / ScaledJobs cluster-wide (or within
-## .Values.operator.watchNamespace when set — Arieotech fix for upstream #5943).
-## When watchNamespace is set the ClusterRole is still required for reading
-## non-namespaced resources (Nodes, etc.); namespace-specific permissions are
-## handled by a RoleBinding in each watched namespace (see clusterrolebinding.yaml).
+## RBAC granted here is always cluster-wide, regardless of .Values.operator.watchNamespace —
+## Kubernetes RBAC has no concept of "these permissions, but only in these namespaces" via a
+## ClusterRoleBinding. watchNamespace (Arieotech fix for upstream #5943) restricts what the
+## operator's own controller-runtime cache/informers actually watch and reconcile; it is a
+## reconciliation-scope control, not an RBAC boundary. Do not treat it as a security isolation
+## mechanism between tenants sharing this operator.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

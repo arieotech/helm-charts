@@ -69,3 +69,17 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   so toggling them had no effect. `dpdp.dataResidency.enabled` now actually does something:
   it adds a `dpdp.arieotech.com/data-residency-region` pod annotation on all three
   components (previously declared in values/schema/README but never wired in).
+- The "Allow Kubernetes API server" NetworkPolicy egress rule on all three components
+  specified only `ports` with no `to:`, which in Kubernetes NetworkPolicy semantics allows
+  HTTPS egress to **any destination** on 443/6443 — not just the API server, contradicting
+  the chart's default-deny claims. Added `networkPolicy.kubeApiServerCIDR` so the rule can
+  be pinned to an `ipBlock`; documented the port-only default's actual scope in the README
+  and inline comments since a generic chart can't know the API server's address ahead of time.
+- Corrected misleading comments in `clusterrole.yaml`/`clusterrolebinding.yaml` and the
+  README's "Namespace-Scoped Installation" section: `operator.watchNamespace` limits what
+  the operator's controller-runtime cache watches, but the ClusterRole/ClusterRoleBinding
+  RBAC is always cluster-wide regardless of this setting — it is not a tenant-isolation
+  or RBAC boundary.
+- `templates/tests/test-connection.yaml`'s single-attempt `wget --spider` per endpoint was
+  flaky against services that aren't immediately ready (especially in CI/kind). Added a
+  retry loop (6 attempts, 10s apart), matching the keycloak chart's test-connection pattern.

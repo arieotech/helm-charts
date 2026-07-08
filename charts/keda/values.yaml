@@ -141,6 +141,14 @@ topologySpreadConstraints:
 ## NetworkPolicy — enabled by default (Arieotech baseline requirement)
 networkPolicy:
   enabled: true
+  ## Optional CIDR for the Kubernetes API server (e.g. "10.0.0.1/32"), used to restrict
+  ## the "Allow Kubernetes API server" egress rule on every component to that destination
+  ## specifically. Kubernetes NetworkPolicy has no generic pod/namespace selector for the
+  ## API server (it typically runs outside the pod network), so without this set, the
+  ## egress rule is port-only — it allows HTTPS egress to ANY destination on 443/6443,
+  ## not just the API server. Find your API server's CIDR with:
+  ##   kubectl get endpoints kubernetes -n default -o jsonpath='{.subsets[0].addresses[*].ip}'
+  kubeApiServerCIDR: ""
   ## Additional ingress rules appended after the default allow-list
   extraIngress: []
   ## Additional egress rules appended after the default allow-list

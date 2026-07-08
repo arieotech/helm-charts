@@ -1,8 +1,8 @@
 ## ClusterRoleBinding for the KEDA operator.
-## When operator.watchNamespace is set, the operator is still granted cluster-wide
-## permissions for non-namespaced resources; namespace-scoped resources in the
-## watched namespaces are accessed via this ClusterRoleBinding pointing at a
-## ClusterRole scoped to those resources.
+## This grants the ClusterRole's permissions cluster-wide, for every namespace —
+## operator.watchNamespace does not narrow this binding; it only limits which
+## namespaces the operator's own reconciliation loop actually watches. See the
+## comment in clusterrole.yaml for why watchNamespace is not an RBAC boundary.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:

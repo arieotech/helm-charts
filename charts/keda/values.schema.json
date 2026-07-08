@@ -239,6 +239,7 @@
       "type": "object",
       "properties": {
         "enabled": { "type": "boolean" },
+        "kubeApiServerCIDR": { "type": "string" },
         "extraIngress": { "type": "array" },
         "extraEgress": { "type": "array" }
       }

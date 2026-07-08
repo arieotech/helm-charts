@@ -35,11 +35,7 @@ spec:
         - port: 53
           protocol: TCP
     ## Allow Kubernetes API server (operator watches resources)
-    - ports:
-        - port: 6443
-          protocol: TCP
-        - port: 443
-          protocol: TCP
+    {{- include "keda.kubeApiServerEgressRule" . | nindent 4 }}
     ## Default-deny beyond this point. The operator connects to arbitrary trigger
     ## sources (Redis, RabbitMQ, Kafka, cloud APIs, etc.) depending on which
     ## ScaledObjects are deployed — add a rule per trigger source here.
@@ -87,11 +83,7 @@ spec:
         - port: 53
           protocol: TCP
     ## Kubernetes API server
-    - ports:
-        - port: 6443
-          protocol: TCP
-        - port: 443
-          protocol: TCP
+    {{- include "keda.kubeApiServerEgressRule" . | nindent 4 }}
     ## Communication with the operator for metrics resolution
     - to:
         - podSelector:
@@ -145,11 +137,7 @@ spec:
         - port: 53
           protocol: TCP
     ## Kubernetes API server
-    - ports:
-        - port: 6443
-          protocol: TCP
-        - port: 443
-          protocol: TCP
+    {{- include "keda.kubeApiServerEgressRule" . | nindent 4 }}
     {{- with .Values.networkPolicy.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
