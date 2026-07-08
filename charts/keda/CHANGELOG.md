@@ -20,7 +20,7 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
 - Per-component `image` blocks with `registry/repository:tag` or `@digest` support.
 - Per-component `resources` blocks with requests and limits.
 - `NetworkPolicy` for all three components, enabled by default.
-- `PodDisruptionBudget` included (via `arieotech.pdb` helper).
+- `PodDisruptionBudget` per component (operator, Metrics API Server, Admission Webhooks).
 - `ServiceMonitor` included (via `arieotech.serviceMonitor` helper).
 - `PrometheusRule` with `KedaOperatorDown`, `KedaMetricsApiServerDown`,
   `KedaScaledObjectError`, `KedaTriggerAuthenticationError` alerts.
@@ -29,8 +29,8 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   `system:auth-delegator` binding and `extension-apiserver-authentication-reader`
   RoleBinding for the Metrics API Server.
 - `topologySpreadConstraints` default: spread across nodes with `DoNotSchedule`.
-- SOC2 defaults: JSON-structured audit logging, TLS enforcement flag.
-- DPDP defaults: PII masking and data residency stubs.
+- SOC2 defaults: JSON-structured audit logging.
+- DPDP defaults: `dpdp.arieotech.com/data-residency-region` pod annotation.
 - Istio Ambient Mesh: `istio.io/dataplane-mode: ambient` label support and
   ztunnel port exclusion annotations.
 - `ci/default-values.yaml` — single-replica CI install for `ct install`.
@@ -83,3 +83,10 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
 - `templates/tests/test-connection.yaml`'s single-attempt `wget --spider` per endpoint was
   flaky against services that aren't immediately ready (especially in CI/kind). Added a
   retry loop (6 attempts, 10s apart), matching the keycloak chart's test-connection pattern.
+- **`templates/pdb.yaml` and `templates/hpa.yaml` never rendered anything.** Both delegated
+  to `arieotech-lib`'s single-component helpers, which gate on a top-level `.Values.replicaCount`
+  (this chart only has per-component `operator.replicaCount` etc., so the PDB condition was
+  always false) and target a Deployment named after the bare chart fullname (this chart's
+  Deployments are suffixed, e.g. `-operator`, so the HPA would have pointed at a non-existent
+  workload). Rewrote both as chart-local templates: a PDB per component, and an HPA scoped to
+  the operator only, matching what `autoscaling.enabled`'s doc comment always said it did.

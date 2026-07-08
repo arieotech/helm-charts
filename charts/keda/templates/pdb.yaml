@@ -1,1 +1,66 @@
-{{- include "arieotech.pdb" . }}
+## arieotech.pdb (arieotech-lib) assumes a single-component chart with a top-level
+## .Values.replicaCount — this chart has three independently-scaled components, so
+## PDBs are defined per-component here instead of delegating to that helper.
+{{- if .Values.pdb.enabled }}
+{{- if gt (int .Values.operator.replicaCount) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "keda.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  selector:
+    matchLabels:
+      {{- include "keda.operatorSelectorLabels" . | nindent 6 }}
+  {{- if .Values.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.pdb.maxUnavailable }}
+  {{- else }}
+  minAvailable: {{ default 1 .Values.pdb.minAvailable }}
+  {{- end }}
+{{- end }}
+---
+{{- if gt (int .Values.metricsApiServer.replicaCount) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "keda.fullname" . }}-metrics-apiserver
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-apiserver
+spec:
+  selector:
+    matchLabels:
+      {{- include "keda.metricsSelectorLabels" . | nindent 6 }}
+  {{- if .Values.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.pdb.maxUnavailable }}
+  {{- else }}
+  minAvailable: {{ default 1 .Values.pdb.minAvailable }}
+  {{- end }}
+{{- end }}
+{{- if .Values.admissionWebhooks.enabled }}
+---
+{{- if gt (int .Values.admissionWebhooks.replicaCount) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "keda.fullname" . }}-admission-webhooks
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhooks
+spec:
+  selector:
+    matchLabels:
+      {{- include "keda.webhooksSelectorLabels" . | nindent 6 }}
+  {{- if .Values.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.pdb.maxUnavailable }}
+  {{- else }}
+  minAvailable: {{ default 1 .Values.pdb.minAvailable }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

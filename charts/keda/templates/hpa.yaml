@@ -1,1 +1,39 @@
-{{- include "arieotech.hpa" . }}
+## arieotech.hpa (arieotech-lib) targets a Deployment named after the bare chart
+## fullname — this chart's Deployments are per-component and suffixed (e.g.
+## "-operator"), so that helper would point the HPA at a workload that doesn't
+## exist. Defined locally, scoped to the operator only (autoscaling.enabled is
+## documented as "HPA for the operator deployment" in values.yaml).
+{{- if .Values.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "keda.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: {{ .Values.autoscaling.kind | default "Deployment" }}
+    name: {{ include "keda.fullname" . }}-operator
+  minReplicas: {{ default 1 .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ default 3 .Values.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
