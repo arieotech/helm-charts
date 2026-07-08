@@ -69,6 +69,8 @@ would be inappropriate.
 | `metricsApiServer.resources` | object | `100m/128Mi` req, `256Mi` limit | Metrics API Server container resources |
 | `metricsApiServer.port` | int | `6443` | HTTPS port for the aggregated API |
 | `metricsApiServer.logLevel` | string | `"0"` | glog verbosity level |
+| `metricsApiServer.apiService.insecureSkipTLSVerify` | bool | `true` | Skip TLS verification for the aggregated API — required unless `caBundle` is set, since the adapter self-signs its cert |
+| `metricsApiServer.apiService.caBundle` | string | `""` | Base64-encoded PEM CA bundle; takes precedence over `insecureSkipTLSVerify` when set |
 | `admissionWebhooks.enabled` | bool | `true` | Deploy admission webhooks |
 | `admissionWebhooks.replicaCount` | int | `2` | Admission webhook replicas |
 | `admissionWebhooks.resources` | object | `50m/64Mi` req, `128Mi` limit | Admission webhook container resources |

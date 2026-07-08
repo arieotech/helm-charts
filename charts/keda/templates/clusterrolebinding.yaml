@@ -105,6 +105,15 @@ spec:
     port: {{ .Values.metricsApiServer.port }}
   group: external.metrics.k8s.io
   version: v1beta1
-  insecureSkipTLSVerify: true
+  {{- if .Values.metricsApiServer.apiService.caBundle }}
+  ## Must already be base64-encoded PEM data, matching the raw Kubernetes APIService field.
+  caBundle: {{ .Values.metricsApiServer.apiService.caBundle | quote }}
+  {{- else }}
+  ## The metrics adapter self-signs its serving cert at startup (no --tls-cert-file
+  ## configured), so there is no stable CA to verify against by default. Set
+  ## metricsApiServer.apiService.caBundle once you provision a real serving cert
+  ## (e.g. via cert-manager) to close this gap.
+  insecureSkipTLSVerify: {{ .Values.metricsApiServer.apiService.insecureSkipTLSVerify }}
+  {{- end }}
   groupPriorityMinimum: 100
   versionPriority: 100

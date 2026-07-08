@@ -56,6 +56,15 @@ metricsApiServer:
   extraEnv: []
   ## Log level
   logLevel: "0"
+  ## APIService registration (external.metrics.k8s.io/v1beta1)
+  apiService:
+    ## The metrics adapter self-signs its serving cert at startup by default, so there
+    ## is no stable CA to verify against — insecureSkipTLSVerify is required unless
+    ## caBundle is set below. Provision a real serving cert (e.g. cert-manager) and set
+    ## caBundle to close this gap in production.
+    insecureSkipTLSVerify: true
+    ## Base64-encoded PEM CA bundle. When set, takes precedence over insecureSkipTLSVerify.
+    caBundle: ""
 
 ## -- KEDA Admission Webhooks component
 admissionWebhooks:

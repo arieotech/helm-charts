@@ -40,9 +40,9 @@ spec:
           protocol: TCP
         - port: 443
           protocol: TCP
-    ## Allow access to any trigger source (RabbitMQ, Kafka, Redis, etc.)
-    ## Operators need broad egress; tighten this via extraEgress in production
-    - {}
+    ## Default-deny beyond this point. The operator connects to arbitrary trigger
+    ## sources (Redis, RabbitMQ, Kafka, cloud APIs, etc.) depending on which
+    ## ScaledObjects are deployed — add a rule per trigger source here.
     {{- with .Values.networkPolicy.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

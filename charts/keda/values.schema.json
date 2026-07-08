@@ -116,7 +116,14 @@
         },
         "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
         "extraEnv": { "type": "array" },
-        "logLevel": { "type": "string" }
+        "logLevel": { "type": "string" },
+        "apiService": {
+          "type": "object",
+          "properties": {
+            "insecureSkipTLSVerify": { "type": "boolean" },
+            "caBundle": { "type": "string" }
+          }
+        }
       }
     },
     "admissionWebhooks": {
@@ -226,6 +233,7 @@
     "tolerations": { "type": "array" },
     "affinity": { "type": "object" },
     "priorityClassName": { "type": "string" },
+    "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
     "topologySpreadConstraints": { "type": "array" },
     "networkPolicy": {
       "type": "object",
@@ -335,6 +343,18 @@
     "extraVolumes": { "type": "array" },
     "extraVolumeMounts": { "type": "array" },
     "initContainers": { "type": "array" },
-    "sidecars": { "type": "array" }
+    "sidecars": { "type": "array" },
+    "secrets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "annotations": { "type": "object" },
+          "data": { "type": "object" },
+          "stringData": { "type": "object" }
+        }
+      }
+    }
   }
 }

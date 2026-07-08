@@ -12,3 +12,10 @@
 - ClusterCloudEventSource CRD (eventing.keda.sh/v1alpha1, Cluster)
 - Arieotech fix for upstream issue #5575 (no CRD separation chart)
 - README with ArgoCD/GitOps integration guidance
+- `helm.sh/resource-policy: keep` annotation and `commonLabels`/`commonAnnotations`
+  wiring, applied consistently to all 6 CRDs via a shared `templates/_helpers.tpl`
+  (previously only `ScaledObject` had this; the other 5 were unmodified upstream
+  manifests, so `helm uninstall` would have deleted them and any live custom
+  resources they backed)
+- `helm.sh/chart` label now derived from `.Chart.Name`/`.Chart.Version` instead of
+  a hardcoded `keda-crds-0.1.0` string that would go stale on every version bump

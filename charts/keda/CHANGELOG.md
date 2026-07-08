@@ -45,3 +45,13 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
 - README expanded with a full values reference, a cert-manager `Certificate` example for
   webhook TLS, an ArgoCD sync-wave guide for `keda-crds` → `keda` ordering, and a
   troubleshooting section.
+
+### Fixed
+- Operator `NetworkPolicy` no longer ships a blanket `- {}` allow-all egress rule —
+  it now stops at DNS + Kubernetes API, matching the "default-deny" behavior the
+  README already documented. Add a rule per trigger source via `networkPolicy.extraEgress`.
+- `metricsApiServer.apiService.insecureSkipTLSVerify` / `.caBundle` values added so the
+  APIService's TLS verification skip is an explicit, documented opt-in/opt-out instead
+  of a hardcoded `true`.
+- `values.schema.json` now covers `terminationGracePeriodSeconds`, `secrets`, and
+  `metricsApiServer.apiService` (previously undocumented in the schema).

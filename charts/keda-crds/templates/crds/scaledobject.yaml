@@ -8,19 +8,10 @@ kind: CustomResourceDefinition
 metadata:
   name: scaledobjects.keda.sh
   annotations:
-    helm.sh/resource-policy: keep
     controller-gen.kubebuilder.io/version: v0.15.0
-    {{- with .Values.commonAnnotations }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+    {{- include "keda-crds.annotations" . | nindent 4 }}
   labels:
-    app.kubernetes.io/name: keda-crds
-    app.kubernetes.io/version: "2.16.0"
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    helm.sh/chart: keda-crds-0.1.0
-    {{- with .Values.commonLabels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+    {{- include "keda-crds.labels" . | nindent 4 }}
 spec:
   group: keda.sh
   names:
