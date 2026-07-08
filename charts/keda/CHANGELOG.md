@@ -143,3 +143,14 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
 - Corrected the SOC2 compliance section's claim that "all KEDA components write logs
   in JSON format" — the Metrics API Server uses klog's plain-text format
   (`--logtostderr`), not JSON; only the operator and admission webhooks are JSON.
+- **Operator and Metrics API Server crash-looped on every real cluster**
+  (`"msg"="failed to get watch namespace" "error"="WATCH_NAMESPACE must be set"`).
+  Both binaries call `kedautil.GetWatchNamespaces()` (`pkg/util/watch.go` in
+  kedacore/keda), which does `os.LookupEnv("WATCH_NAMESPACE")` and exits fatally if the
+  variable isn't present at all — even set to `""`. The chart instead passed
+  `--watch-namespace=<value>` as a CLI flag, which isn't a real flag on either binary
+  (checked every `pflag.*Var` registration in `cmd/operator/main.go` — no
+  `watch-namespace` flag exists) and would have hard-failed with "unknown flag" the
+  moment anyone set `operator.watchNamespace` to a non-empty value, on top of never
+  fixing the always-fatal missing-env-var case. Removed the fake flag; added a
+  `WATCH_NAMESPACE` env var (from `operator.watchNamespace`) to both deployments.

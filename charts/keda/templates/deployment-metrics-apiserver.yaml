@@ -55,6 +55,11 @@ spec:
               value: "3000"
             - name: KEDA_HTTP_MIN_TLS_VERSION
               value: "TLS12"
+            ## Required — the adapter calls the same pkg/util.GetWatchNamespaces() as the
+            ## operator and exits fatally if this isn't present at all, even set to "".
+            ## Kept in sync with operator.watchNamespace since both watch the same CRs.
+            - name: WATCH_NAMESPACE
+              value: {{ .Values.operator.watchNamespace | quote }}
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:

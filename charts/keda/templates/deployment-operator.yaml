@@ -55,10 +55,6 @@ spec:
             - --zap-log-level={{ .Values.operator.logLevel }}
             - --zap-encoder={{ .Values.operator.logEncoder }}
             - --zap-time-encoding={{ .Values.operator.logTimeFormat }}
-            {{- if .Values.operator.watchNamespace }}
-            ## Arieotech fix for upstream issue #5943: restrict operator to specific namespaces
-            - --watch-namespace={{ .Values.operator.watchNamespace }}
-            {{- end }}
             {{- if .Values.metrics.enabled }}
             - --metrics-bind-address=:9666
             {{- end }}
@@ -67,6 +63,13 @@ spec:
               value: "3000"
             - name: KEDA_HTTP_MIN_TLS_VERSION
               value: "TLS12"
+            ## Required — the operator calls os.LookupEnv("WATCH_NAMESPACE") directly
+            ## (pkg/util.GetWatchNamespaces in kedacore/keda) and exits fatally if the
+            ## var isn't present at all, even set to "". There is no --watch-namespace
+            ## CLI flag; empty string means cluster-wide (Arieotech fix for upstream #5943
+            ## is this env var, not a flag).
+            - name: WATCH_NAMESPACE
+              value: {{ .Values.operator.watchNamespace | quote }}
             ## Pod name used for leader election
             - name: POD_NAME
               valueFrom:
