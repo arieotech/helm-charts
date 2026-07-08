@@ -1,6 +1,8 @@
 ## Service for the KEDA operator.
-## Exposes the health (8080) and metrics (9666) ports so that the helm test
-## pod can reach /healthz and Prometheus can scrape /metrics.
+## Exposes health (8081), the always-on gRPC channel the Metrics API Server uses to
+## resolve external metrics (9666, unrelated to Prometheus), and Prometheus metrics
+## (8080, only when metrics.enabled) — see deployment-operator.yaml for why these
+## numbers matter (they must match the operator binary's real flag defaults).
 apiVersion: v1
 kind: Service
 metadata:
@@ -15,12 +17,16 @@ spec:
     {{- include "keda.operatorSelectorLabels" . | nindent 4 }}
   ports:
     - name: health
-      port: 8080
+      port: 8081
       targetPort: health
+      protocol: TCP
+    - name: grpc-metrics
+      port: 9666
+      targetPort: grpc-metrics
       protocol: TCP
     {{- if .Values.metrics.enabled }}
     - name: metrics
-      port: 9666
+      port: 8080
       targetPort: metrics
       protocol: TCP
     {{- end }}

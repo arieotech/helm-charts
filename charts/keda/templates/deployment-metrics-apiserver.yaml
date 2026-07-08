@@ -70,10 +70,16 @@ spec:
             - name: metrics
               containerPort: 9022
               protocol: TCP
+          ## Verified against KEDA's own upstream deployment manifest
+          ## (config/metrics-server/deployment.yaml @ v2.16.0): the adapter serves
+          ## /healthz and /readyz on the secure API port over HTTPS — there is no
+          ## separate plain-HTTP health port. kubelet's httpGet probe does not verify
+          ## the server certificate, so the self-signed cert here is not a problem.
           livenessProbe:
             httpGet:
               path: /healthz
-              port: health
+              port: https
+              scheme: HTTPS
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -81,7 +87,8 @@ spec:
           readinessProbe:
             httpGet:
               path: /readyz
-              port: health
+              port: https
+              scheme: HTTPS
             initialDelaySeconds: 5
             periodSeconds: 3
             timeoutSeconds: 3

@@ -44,6 +44,12 @@ spec:
             - --zap-log-level={{ .Values.operator.logLevel }}
             - --zap-encoder={{ .Values.operator.logEncoder }}
             - --zap-time-encoding={{ .Values.operator.logTimeFormat }}
+            {{- if not .Values.metrics.enabled }}
+            ## Standard controller-runtime idiom: --metrics-bind-address=0 disables the
+            ## metrics server entirely (this binary has no separate enable/disable flag,
+            ## unlike the operator's --enable-prometheus-metrics).
+            - --metrics-bind-address=0
+            {{- end }}
           env:
             - name: POD_NAME
               valueFrom:
@@ -60,12 +66,18 @@ spec:
             - name: webhook
               containerPort: {{ .Values.admissionWebhooks.port }}
               protocol: TCP
+            ## --health-probe-bind-address's real default. The chart previously had
+            ## this backwards (health=8080, metrics=8081) — swapped to match the
+            ## binary's actual, unconfigured controller-runtime defaults.
             - name: health
-              containerPort: 8080
-              protocol: TCP
-            - name: metrics
               containerPort: 8081
               protocol: TCP
+            {{- if .Values.metrics.enabled }}
+            ## --metrics-bind-address's real default (Prometheus).
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz

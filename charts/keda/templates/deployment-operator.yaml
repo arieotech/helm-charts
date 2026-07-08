@@ -48,8 +48,15 @@ spec:
             - --zap-log-level={{ .Values.operator.logLevel }}
             - --zap-encoder={{ .Values.operator.logEncoder }}
             - --zap-time-encoding={{ .Values.operator.logTimeFormat }}
-            {{- if .Values.metrics.enabled }}
-            - --metrics-bind-address=:9666
+            {{- if not .Values.metrics.enabled }}
+            ## Real flag for disabling Prometheus metrics (default true). The chart
+            ## previously (wrongly) pointed --metrics-bind-address at :9666 — which
+            ## collides with --metrics-service-bind-address's own default of :9666
+            ## (the gRPC channel metrics-apiserver uses to resolve external metrics,
+            ## unrelated to Prometheus and required regardless of this setting) —
+            ## causing a bind: address already in use crash whenever metrics.enabled
+            ## was true. Prometheus's own real default bind address is :8080.
+            - --enable-prometheus-metrics=false
             {{- end }}
           env:
             - name: KEDA_HTTP_DEFAULT_TIMEOUT
@@ -80,12 +87,24 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           ports:
-            - name: metrics
+            ## gRPC channel the Metrics API Server uses to resolve external metrics —
+            ## the binary's own real default for --metrics-service-bind-address, always
+            ## needed regardless of metrics.enabled (it is not a Prometheus concern).
+            - name: grpc-metrics
               containerPort: 9666
               protocol: TCP
+            ## --health-probe-bind-address's real default; the chart previously didn't
+            ## set this flag but pointed probes at :8080, which doesn't match the
+            ## binary's actual default of :8081.
             - name: health
+              containerPort: 8081
+              protocol: TCP
+            {{- if .Values.metrics.enabled }}
+            ## --metrics-bind-address's real default (Prometheus).
+            - name: metrics
               containerPort: 8080
               protocol: TCP
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz

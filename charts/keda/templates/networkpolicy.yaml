@@ -16,18 +16,27 @@ spec:
     - Ingress
     - Egress
   ingress:
-    ## Port-only: allows inbound from ANY source on the metrics port, not restricted
-    ## to Prometheus specifically. Kubernetes NetworkPolicy has no portable selector
-    ## for an arbitrary in- or out-of-cluster scraper; use networkPolicy.extraIngress
-    ## to add a podSelector/namespaceSelector for your Prometheus if you need this tighter.
+    ## Always allow the gRPC channel the Metrics API Server uses to resolve external
+    ## metrics — required regardless of metrics.enabled, since it is unrelated to
+    ## Prometheus (see deployment-operator.yaml). Port-only: no portable selector for
+    ## "any pod that happens to run the Metrics API Server" without extra values plumbing.
     - ports:
         - port: 9666
           protocol: TCP
     ## Port-only: health probes come from the kubelet process on the node, which has
     ## no selectable pod/namespace identity Kubernetes NetworkPolicy can match.
     - ports:
+        - port: 8081
+          protocol: TCP
+    {{- if .Values.metrics.enabled }}
+    ## Port-only: allows inbound from ANY source on the Prometheus port, not restricted
+    ## to Prometheus specifically. Kubernetes NetworkPolicy has no portable selector
+    ## for an arbitrary in- or out-of-cluster scraper; use networkPolicy.extraIngress
+    ## to add a podSelector/namespaceSelector for your Prometheus if you need this tighter.
+    - ports:
         - port: 8080
           protocol: TCP
+    {{- end }}
     {{- with .Values.networkPolicy.extraIngress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -127,13 +136,15 @@ spec:
     ## Port-only: health probes come from the kubelet process on the node, which has
     ## no selectable pod/namespace identity Kubernetes NetworkPolicy can match.
     - ports:
-        - port: 8080
-          protocol: TCP
-    ## Port-only: allows inbound from ANY source on the metrics port, not restricted
-    ## to Prometheus specifically — see the equivalent comment on the operator policy above.
-    - ports:
         - port: 8081
           protocol: TCP
+    {{- if .Values.metrics.enabled }}
+    ## Port-only: allows inbound from ANY source on the Prometheus port, not restricted
+    ## to Prometheus specifically — see the equivalent comment on the operator policy above.
+    - ports:
+        - port: 8080
+          protocol: TCP
+    {{- end }}
     {{- with .Values.networkPolicy.extraIngress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

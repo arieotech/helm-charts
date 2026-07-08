@@ -18,13 +18,15 @@ spec:
       port: {{ .Values.admissionWebhooks.port }}
       targetPort: webhook
       protocol: TCP
+    ## Swapped to match the binary's real controller-runtime defaults (previously
+    ## backwards) — see deployment-admission-webhooks.yaml.
     - name: health
-      port: 8080
+      port: 8081
       targetPort: health
       protocol: TCP
     {{- if .Values.metrics.enabled }}
     - name: metrics
-      port: 8081
+      port: 8080
       targetPort: metrics
       protocol: TCP
     {{- end }}

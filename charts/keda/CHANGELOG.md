@@ -169,3 +169,46 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   verified against each source individually, all three combined, and a multi-key
   `podAnnotations` value (to make sure a helper bug didn't just move the indentation
   problem into the multi-line case).
+- **Operator and Admission Webhooks health/metrics ports were wrong, and the
+  operator's Prometheus toggle caused a port collision that would crash it whenever
+  `metrics.enabled=true`.** Verified against `cmd/operator/main.go`,
+  `cmd/webhooks/main.go`, and `cmd/adapter/main.go` (all `kedacore/keda @ v2.16.0`),
+  plus KEDA's own upstream `config/metrics-server/deployment.yaml`:
+  - Operator: `--metrics-bind-address=:9666` (toggled by `metrics.enabled`) collided
+    with `--metrics-service-bind-address`'s own default of `:9666` — the gRPC channel
+    the Metrics API Server uses to resolve external metrics, required regardless of
+    `metrics.enabled` and completely unrelated to Prometheus. Whenever `metrics.enabled`
+    was `true`, the operator would crash with a bind-address-in-use error. Replaced with
+    the real toggle flag, `--enable-prometheus-metrics=false`. Also, no
+    `--health-probe-bind-address` flag was ever set, so probes targeting containerPort
+    `8080` were checking a port the binary was never actually listening on
+    (`--health-probe-bind-address` defaults to `:8081`) — this alone would have blocked
+    the operator from ever reaching Ready, independent of the metrics toggle bug.
+    Re-mapped container ports to the binary's real defaults (`grpc-metrics`: 9666 always,
+    `health`: 8081, `metrics`: 8080 conditional) instead of fighting them with flags.
+  - Admission Webhooks: `health` and `metrics` container ports were declared backwards
+    (`health: 8080`, `metrics: 8081`) relative to the binary's real controller-runtime
+    defaults (`--metrics-bind-address` defaults `:8080`, `--health-probe-bind-address`
+    defaults `:8081`) — swapped to match. Added `--metrics-bind-address=0` (this
+    binary's disable idiom — it has no separate enable/disable flag like the operator)
+    when `metrics.enabled=false`.
+  - Metrics API Server: probes targeted a `health` port (8080) that doesn't exist on
+    this binary at all — confirmed against KEDA's own upstream deployment manifest that
+    `/healthz`/`/readyz` are served on the secure API port (6443) over HTTPS, with no
+    separate plain-HTTP health port. Updated probes accordingly, and updated
+    `templates/tests/test-connection.yaml`'s health check to use HTTPS with
+    `--no-check-certificate` (kubelet's own probes never validate certs either,
+    regardless of scheme, so this doesn't weaken anything a real probe wouldn't already
+    accept).
+  - Updated `service-operator.yaml`, `service-admission-webhooks.yaml`, and
+    `networkpolicy.yaml` to match the corrected port numbers throughout, and split the
+    previously-unconditional operator NetworkPolicy rule on port 9666 (now correctly
+    understood as the always-required gRPC channel, left unconditional) from a new,
+    separate rule for the real Prometheus port 8080 (conditional on `metrics.enabled`).
+  - Known follow-up not fixed in this pass: the Metrics API Server's own `metrics`
+    container port is declared as `9022`, which doesn't match the adapter's real `--port`
+    default of `8080` for its Prometheus endpoint (`cmd/adapter/main.go`'s
+    `RunMetricsServer`). This doesn't block installs or probes (nothing currently depends
+    on port 9022 being correct), but means `ServiceMonitor` scraping would get no real
+    data from that port. Left as-is to keep this change's blast radius to what's actually
+    required for pods to reach Ready — worth a follow-up pass.

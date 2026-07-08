@@ -35,9 +35,9 @@ spec:
         - -c
         - |
           check() {
-            name="$1"; url="$2"
+            name="$1"; url="$2"; shift 2
             i=0
-            until wget -q --spider --timeout=10 "$url"; do
+            until wget -q --spider --timeout=10 "$@" "$url"; do
               i=$((i+1))
               if [ $i -ge 6 ]; then echo "FAIL: $name timed out after ~60s"; exit 1; fi
               echo "$name: attempt $i failed, retrying in 10s..."
@@ -47,14 +47,20 @@ spec:
           }
 
           check "KEDA operator" \
-            "http://{{ include "keda.fullname" . }}-operator.{{ .Release.Namespace }}.svc.cluster.local:8080/healthz"
+            "http://{{ include "keda.fullname" . }}-operator.{{ .Release.Namespace }}.svc.cluster.local:8081/healthz"
 
+          ## HTTPS: the adapter serves /healthz on its secure API port, not a separate
+          ## plain-HTTP health port — see deployment-metrics-apiserver.yaml. The cert is
+          ## self-signed by default, so certificate validation is skipped here (this is a
+          ## liveness smoke test, not a security check — same as kubelet's own probe,
+          ## which never validates certs for httpGet probes regardless of scheme).
           check "KEDA metrics API server" \
-            "http://{{ include "keda.fullname" . }}-metrics-apiserver.{{ .Release.Namespace }}.svc.cluster.local:8080/healthz"
+            "https://{{ include "keda.fullname" . }}-metrics-apiserver.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.metricsApiServer.port }}/healthz" \
+            --no-check-certificate
 
           {{- if .Values.admissionWebhooks.enabled }}
           check "KEDA admission webhooks" \
-            "http://{{ include "keda.fullname" . }}-admission-webhooks.{{ .Release.Namespace }}.svc.cluster.local:8080/healthz"
+            "http://{{ include "keda.fullname" . }}-admission-webhooks.{{ .Release.Namespace }}.svc.cluster.local:8081/healthz"
           {{- end }}
 
           echo "All KEDA health checks passed."
