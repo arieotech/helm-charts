@@ -1,0 +1,56 @@
+KEDA {{ .Chart.AppVersion }} has been deployed.
+
+Release:   {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+Components deployed:
+  Operator replicas:              {{ .Values.operator.replicaCount }}
+  Metrics API Server replicas:    {{ .Values.metricsApiServer.replicaCount }}
+  Admission Webhooks:             {{ .Values.admissionWebhooks.enabled }}
+
+{{- if .Values.operator.watchNamespace }}
+
+Namespace scope (Arieotech fix for upstream #5943):
+  Operator is watching namespaces: {{ .Values.operator.watchNamespace }}
+  (cluster-wide watch is disabled)
+
+{{- else }}
+
+Operator is watching all namespaces (cluster-wide).
+  To restrict to specific namespaces (recommended for multi-tenant clusters):
+    operator.watchNamespace="ns1,ns2,ns3"
+
+{{- end }}
+
+CRD management:
+  This chart does NOT install CRDs.
+  Install the keda-crds chart first for GitOps-safe CRD management (Arieotech fix for #5575):
+
+    helm upgrade --install keda-crds arieotech/keda-crds -n keda --create-namespace
+
+Verify the installation:
+  kubectl get deployment -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "keda.name" . }}
+  kubectl get scaledobjects --all-namespaces
+
+{{- if .Values.metrics.serviceMonitor.enabled }}
+
+ServiceMonitor created — ensure Prometheus Operator is installed and watching this namespace.
+
+{{- else }}
+
+To enable Prometheus scraping:
+  metrics.serviceMonitor.enabled=true
+
+{{- end }}
+
+Production checklist:
+  [ ] keda-crds chart installed first (version matches {{ .Chart.AppVersion }})
+  [ ] operator.watchNamespace set for multi-tenant clusters
+  [ ] networkPolicy.enabled=true (default)
+  [ ] pdb.enabled=true (default)
+  [ ] metrics.serviceMonitor.enabled=true (if using Prometheus Operator)
+  [ ] admissionWebhooks TLS cert provisioned (cert-manager Certificate or external-secrets)
+  [ ] soc2.auditLogging.enabled=true (default)
+
+Documentation: https://github.com/arieotech/helm-charts/tree/main/charts/keda
+KEDA docs:     https://keda.sh/docs/{{ .Chart.AppVersion }}/

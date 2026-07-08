@@ -1,0 +1,110 @@
+## ClusterRoleBinding for the KEDA operator.
+## When operator.watchNamespace is set, the operator is still granted cluster-wide
+## permissions for non-namespaced resources; namespace-scoped resources in the
+## watched namespaces are accessed via this ClusterRoleBinding pointing at a
+## ClusterRole scoped to those resources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "keda.fullname" . }}-operator
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "keda.fullname" . }}-operator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "keda.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+## ClusterRoleBinding for the KEDA Metrics API Server.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "keda.fullname" . }}-metrics-apiserver
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-apiserver
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "keda.fullname" . }}-metrics-apiserver
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "keda.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+## ClusterRoleBinding: allow the Metrics API Server to delegate auth
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "keda.fullname" . }}-metrics-apiserver-auth-delegator
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-apiserver
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "keda.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+## RoleBinding: allow Metrics API Server to read kube-system:extension-apiserver-authentication
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "keda.fullname" . }}-metrics-apiserver-auth-reader
+  namespace: kube-system
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-apiserver
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "keda.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+## ClusterRoleBinding for the KEDA Admission Webhooks.
+{{- if .Values.admissionWebhooks.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "keda.fullname" . }}-admission-webhooks
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhooks
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "keda.fullname" . }}-admission-webhooks
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "keda.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+---
+## APIService registration for keda-metrics-apiserver (external.metrics.k8s.io/v1beta1)
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.external.metrics.k8s.io
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-apiserver
+spec:
+  service:
+    name: {{ include "keda.fullname" . }}-metrics-apiserver
+    namespace: {{ .Release.Namespace }}
+    port: {{ .Values.metricsApiServer.port }}
+  group: external.metrics.k8s.io
+  version: v1beta1
+  insecureSkipTLSVerify: true
+  groupPriorityMinimum: 100
+  versionPriority: 100

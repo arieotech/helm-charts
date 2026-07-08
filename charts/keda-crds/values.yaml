@@ -1,0 +1,12 @@
+## Arieotech KEDA CRDs Chart — values
+## This chart installs KEDA CRDs only. There are no deployable workloads.
+## All values here affect labels/annotations on the CRD resources.
+
+## Extra labels applied to all CRD resources
+commonLabels: {}
+  # team: platform
+  # env: production
+
+## Extra annotations applied to all CRD resources
+commonAnnotations: {}
+  # argocd.argoproj.io/sync-wave: "-1"

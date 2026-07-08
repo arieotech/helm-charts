@@ -1,0 +1,26 @@
+## Service for the KEDA operator.
+## Exposes the health (8080) and metrics (9666) ports so that the helm test
+## pod can reach /healthz and Prometheus can scrape /metrics.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "keda.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "keda.operatorSelectorLabels" . | nindent 4 }}
+  ports:
+    - name: health
+      port: 8080
+      targetPort: health
+      protocol: TCP
+    {{- if .Values.metrics.enabled }}
+    - name: metrics
+      port: 9666
+      targetPort: metrics
+      protocol: TCP
+    {{- end }}

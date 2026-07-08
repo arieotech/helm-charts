@@ -1,0 +1,144 @@
+{{- if .Values.admissionWebhooks.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keda.fullname" . }}-admission-webhooks
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhooks
+spec:
+  replicas: {{ .Values.admissionWebhooks.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "keda.webhooksSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "keda.webhooksSelectorLabels" . | nindent 8 }}
+        {{- include "arieotech.istioAmbientLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- include "arieotech.istioExcludedPorts" . | nindent 8 }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "keda.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "arieotech.podSecurityContext" . | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      containers:
+        - name: keda-admission-webhooks
+          image: {{ include "keda.componentImage" .Values.admissionWebhooks.image | quote }}
+          imagePullPolicy: {{ .Values.admissionWebhooks.image.pullPolicy }}
+          command:
+            - /webhooks
+          args:
+            - --zap-log-level={{ .Values.operator.logLevel }}
+            - --zap-encoder={{ .Values.operator.logEncoder }}
+            - --zap-time-encoding={{ .Values.operator.logTimeFormat }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- with .Values.admissionWebhooks.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: webhook
+              containerPort: {{ .Values.admissionWebhooks.port }}
+              protocol: TCP
+            - name: health
+              containerPort: 8080
+              protocol: TCP
+            - name: metrics
+              containerPort: 8081
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            {{- include "arieotech.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.admissionWebhooks.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        ## Webhook TLS certs — populate via cert-manager or external-secrets
+        - name: certs
+          secret:
+            secretName: {{ include "keda.fullname" . }}-webhooks-tls
+            optional: true
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- else }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "keda.webhooksSelectorLabels" . | nindent 20 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- range . }}
+        - {{ toYaml . | nindent 10 | trim }}
+          labelSelector:
+            matchLabels:
+              {{- include "keda.webhooksSelectorLabels" $ | nindent 14 }}
+        {{- end }}
+      {{- end }}
+{{- end }}

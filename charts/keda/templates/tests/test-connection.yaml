@@ -1,0 +1,52 @@
+## Helm test: verify the KEDA operator and Metrics API Server health endpoints respond.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ printf "%s-test-connection" (include "keda.fullname" .) }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  serviceAccountName: {{ include "keda.serviceAccountName" . }}
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: test-operator-health
+      image: busybox:1.36.1
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+      command:
+        - sh
+        - -c
+        - |
+          echo "Testing KEDA operator health endpoint..."
+          wget --spider --timeout=10 \
+            "http://{{ include "keda.fullname" . }}-operator.{{ .Release.Namespace }}.svc.cluster.local:8080/healthz" \
+            && echo "KEDA operator: OK"
+
+          echo "Testing KEDA metrics API server health endpoint..."
+          wget --spider --timeout=10 \
+            "http://{{ include "keda.fullname" . }}-metrics-apiserver.{{ .Release.Namespace }}.svc.cluster.local:8080/healthz" \
+            && echo "KEDA metrics API server: OK"
+
+          {{- if .Values.admissionWebhooks.enabled }}
+          echo "Testing KEDA admission webhooks health endpoint..."
+          wget --spider --timeout=10 \
+            "http://{{ include "keda.fullname" . }}-admission-webhooks.{{ .Release.Namespace }}.svc.cluster.local:8080/healthz" \
+            && echo "KEDA admission webhooks: OK"
+          {{- end }}
+
+          echo "All KEDA health checks passed."

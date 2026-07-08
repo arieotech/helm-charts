@@ -1,0 +1,45 @@
+apiVersion: v2
+name: keda-crds
+description: >
+  CRD-only companion chart for KEDA 2.16.0. Installs ScaledObject, ScaledJob,
+  TriggerAuthentication, ClusterTriggerAuthentication, CloudEventSource, and
+  ClusterCloudEventSource CRDs as Helm-managed resources so they can be versioned,
+  upgraded, and rolled back independently of the KEDA operator — the Arieotech fix
+  for upstream issue #5575. Safe for GitOps/ArgoCD workflows.
+type: application
+version: 0.1.0
+appVersion: "2.16.0"
+keywords:
+  - keda
+  - crds
+  - autoscaling
+  - scaledobject
+  - gitops
+  - argocd
+home: https://keda.sh
+sources:
+  - https://github.com/arieotech/helm-charts/tree/main/charts/keda-crds
+  - https://github.com/kedacore/keda
+icon: https://keda.sh/img/logos/keda-icon-color.png
+maintainers:
+  - name: Arieotech
+    email: helm@arieotech.com
+    url: https://arieotech.com
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/changes: |
+    - kind: added
+      description: >
+        Initial release — KEDA 2.16.0 CRDs as Helm-managed resources.
+        Arieotech fix for upstream issue #5575 (no CRD separation chart).
+        Enables independent CRD lifecycle management for GitOps/ArgoCD workflows.
+  artifacthub.io/recommendations: |
+    - url: https://artifacthub.io/packages/helm/arieotech/keda
+  artifacthub.io/links: |
+    - name: KEDA operator chart
+      url: https://github.com/arieotech/helm-charts/tree/main/charts/keda
+    - name: CRD separation rationale (issue #5575)
+      url: https://github.com/kedacore/charts/issues/5575
+    - name: KEDA CRD documentation
+      url: https://keda.sh/docs/2.16/concepts/

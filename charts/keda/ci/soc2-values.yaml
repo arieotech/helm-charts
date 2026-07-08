@@ -1,0 +1,30 @@
+## SOC2-hardened CI profile — tests SOC2/DPDP settings render and deploy correctly
+
+operator:
+  replicaCount: 1
+
+metricsApiServer:
+  replicaCount: 1
+
+admissionWebhooks:
+  enabled: false
+
+soc2:
+  auditLogging:
+    enabled: true
+  enforceTLS: false
+
+dpdp:
+  piiMasking:
+    enabled: true
+
+networkPolicy:
+  enabled: false
+
+metrics:
+  enabled: false
+
+pdb:
+  enabled: false
+
+topologySpreadConstraints: []

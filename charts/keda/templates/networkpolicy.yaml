@@ -1,0 +1,157 @@
+{{- if .Values.networkPolicy.enabled }}
+## NetworkPolicy for the KEDA operator.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "keda.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "keda.operatorSelectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    ## Allow Prometheus scrape on metrics port
+    - ports:
+        - port: 9666
+          protocol: TCP
+    ## Allow health check from kubelet
+    - ports:
+        - port: 8080
+          protocol: TCP
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    ## Always allow DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    ## Allow Kubernetes API server (operator watches resources)
+    - ports:
+        - port: 6443
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+    ## Allow access to any trigger source (RabbitMQ, Kafka, Redis, etc.)
+    ## Operators need broad egress; tighten this via extraEgress in production
+    - {}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+## NetworkPolicy for the KEDA Metrics API Server.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "keda.fullname" . }}-metrics-apiserver
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-apiserver
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "keda.metricsSelectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    ## Allow kube-aggregator to reach the Metrics API Server on HTTPS
+    - ports:
+        - port: {{ .Values.metricsApiServer.port }}
+          protocol: TCP
+    ## Health checks from kubelet
+    - ports:
+        - port: 8080
+          protocol: TCP
+    ## Prometheus scrape
+    - ports:
+        - port: 9022
+          protocol: TCP
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    ## DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    ## Kubernetes API server
+    - ports:
+        - port: 6443
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+    ## Communication with the operator for metrics resolution
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "keda.operatorSelectorLabels" . | nindent 14 }}
+      ports:
+        - port: 9666
+          protocol: TCP
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- if .Values.admissionWebhooks.enabled }}
+---
+## NetworkPolicy for the KEDA Admission Webhooks.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "keda.fullname" . }}-admission-webhooks
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhooks
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "keda.webhooksSelectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    ## Allow kube-apiserver to reach the webhook on the webhook port
+    - ports:
+        - port: {{ .Values.admissionWebhooks.port }}
+          protocol: TCP
+    ## Health checks from kubelet
+    - ports:
+        - port: 8080
+          protocol: TCP
+    ## Prometheus scrape of admission webhook metrics
+    - ports:
+        - port: 8081
+          protocol: TCP
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    ## DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    ## Kubernetes API server
+    - ports:
+        - port: 6443
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,206 @@
+## Arieotech KEDA Helm Chart — Production Defaults
+## Fixes upstream namespace-scoped RBAC (issue #5943)
+## Install CRDs separately with the keda-crds chart (issue #5575 fix)
+
+global:
+  imagePullSecrets: []
+  storageClass: ""
+
+## -- KEDA Operator component
+operator:
+  image:
+    registry: ghcr.io
+    repository: kedacore/keda
+    tag: "2.16.0"
+    digest: ""
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  ## Arieotech fix for upstream issue #5943:
+  ## Restrict the operator to specific namespaces (comma-separated).
+  ## Empty string = cluster-wide watch (default upstream behaviour).
+  ## Example: "default,production,staging"
+  watchNamespace: ""
+  ## Extra environment variables injected into the operator container
+  extraEnv: []
+  ## Log level: debug, info, error
+  logLevel: "info"
+  ## Log encoder: console, json
+  logEncoder: "json"
+  ## Log time encoding: epoch, millis, nano, iso8601, rfc3339, rfc3339nano
+  logTimeFormat: "rfc3339"
+
+## -- KEDA Metrics API Server component
+metricsApiServer:
+  image:
+    registry: ghcr.io
+    repository: kedacore/keda-metrics-apiserver
+    tag: "2.16.0"
+    digest: ""
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  ## Port that the Metrics API Server listens on for HTTPS (aggregated API)
+  port: 6443
+  ## Extra environment variables
+  extraEnv: []
+  ## Log level
+  logLevel: "0"
+
+## -- KEDA Admission Webhooks component
+admissionWebhooks:
+  enabled: true
+  image:
+    registry: ghcr.io
+    repository: kedacore/keda-admission-webhooks
+    tag: "2.16.0"
+    digest: ""
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  ## Port that the webhook server listens on
+  port: 9443
+  ## Extra environment variables
+  extraEnv: []
+
+## -- Shared values (apply globally when component-level override is absent)
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  ## automountServiceAccountToken must be false; KEDA uses projected token volumes
+  automountServiceAccountToken: false
+
+podAnnotations: {}
+podLabels: {}
+
+## Pod security context (PSA restricted-mode compliant)
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container security context (PSA restricted-mode compliant)
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+priorityClassName: ""
+
+## KEDA operator needs time to finish in-flight ScaledObject reconciliations on shutdown.
+terminationGracePeriodSeconds: 30
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+
+## NetworkPolicy — enabled by default (Arieotech baseline requirement)
+networkPolicy:
+  enabled: true
+  ## Additional ingress rules appended after the default allow-list
+  extraIngress: []
+  ## Additional egress rules appended after the default allow-list
+  extraEgress: []
+
+## PodDisruptionBudget
+pdb:
+  enabled: true
+  minAvailable: 1
+
+## HPA for the operator deployment (unusual but provided for completeness)
+autoscaling:
+  enabled: false
+  kind: Deployment
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+## Prometheus metrics
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    labels: {}
+    interval: "30s"
+    scrapeTimeout: "10s"
+    port: metrics
+    path: /metrics
+  prometheusRule:
+    enabled: false
+    namespace: ""
+    labels: {}
+    additionalRules: []
+
+## Istio Ambient Mesh
+istio:
+  ambient:
+    enabled: false
+    ## Ports to exclude from ztunnel capture (e.g., health-check ports)
+    excludedPorts: []
+
+## SOC2 compliance defaults
+soc2:
+  auditLogging:
+    ## Structured JSON audit logging to stdout
+    enabled: true
+  enforceTLS: true
+
+## DPDP compliance defaults
+dpdp:
+  piiMasking:
+    enabled: false
+  dataResidency:
+    enabled: false
+    region: ""
+
+extraVolumes: []
+extraVolumeMounts: []
+initContainers: []
+sidecars: []
+
+## Create arbitrary Secrets in the same namespace alongside the chart.
+## Useful for TriggerAuthentication credentials (Redis passwords, RabbitMQ creds, etc.).
+secrets: {}
+# redis-trigger-auth:
+#   stringData:
+#     password: "changeme"
+# rabbitmq-trigger-auth:
+#   type: Opaque
+#   stringData:
+#     connectionString: "amqp://user:pass@rabbitmq:5672/vhost"

@@ -1,0 +1,97 @@
+{{- if and .Values.metrics.enabled .Values.metrics.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "keda.fullname" . }}
+  namespace: {{ default .Release.Namespace .Values.metrics.prometheusRule.namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    {{- with .Values.metrics.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: keda.operator.rules
+      rules:
+        ## Alert when the operator Deployment has no available replicas
+        - alert: KedaOperatorDown
+          expr: |
+            kube_deployment_status_replicas_available{
+              deployment="{{ include "keda.fullname" . }}-operator",
+              namespace="{{ .Release.Namespace }}"
+            } == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "KEDA operator has no available replicas"
+            description: >
+              The KEDA operator Deployment {{ "{{" }} $labels.deployment {{ "}}" }}
+              in namespace {{ "{{" }} $labels.namespace {{ "}}" }} has had zero available
+              replicas for more than 5 minutes. Event-driven autoscaling is offline.
+
+        ## Alert when the operator cannot reconcile ScaledObjects
+        - alert: KedaScaledObjectError
+          expr: |
+            keda_scaledobject_errors_total > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "KEDA ScaledObject reconciliation errors"
+            description: >
+              ScaledObject {{ "{{" }} $labels.scaledObject {{ "}}" }} in namespace
+              {{ "{{" }} $labels.namespace {{ "}}" }} has accumulated {{ "{{" }} $value {{ "}}" }}
+              reconciliation errors. Check KEDA operator logs.
+
+        ## Alert when triggers are reporting errors
+        - alert: KedaTriggerAuthenticationError
+          expr: |
+            keda_trigger_totals{type="error"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "KEDA trigger authentication errors"
+            description: >
+              KEDA trigger of type {{ "{{" }} $labels.type {{ "}}" }} is reporting errors.
+              Verify TriggerAuthentication secrets are correctly configured.
+
+    - name: keda.metricsapiserver.rules
+      rules:
+        ## Alert when the Metrics API Server Deployment has no available replicas
+        - alert: KedaMetricsApiServerDown
+          expr: |
+            kube_deployment_status_replicas_available{
+              deployment="{{ include "keda.fullname" . }}-metrics-apiserver",
+              namespace="{{ .Release.Namespace }}"
+            } == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "KEDA Metrics API Server has no available replicas"
+            description: >
+              The KEDA Metrics API Server {{ "{{" }} $labels.deployment {{ "}}" }} in
+              namespace {{ "{{" }} $labels.namespace {{ "}}" }} has had zero available replicas
+              for more than 5 minutes. HPA external metrics queries are failing.
+
+        ## Alert when the Metrics API Server error rate is high
+        - alert: KedaMetricsApiServerHighErrorRate
+          expr: |
+            rate(workqueue_adds_total{
+              job="{{ include "keda.fullname" . }}-metrics-apiserver"
+            }[5m]) > 10
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "KEDA Metrics API Server high workqueue rate"
+            description: >
+              KEDA Metrics API Server workqueue processing rate is
+              {{ "{{" }} $value | humanize {{ "}}" }} ops/s — possible backpressure.
+
+        {{- with .Values.metrics.prometheusRule.additionalRules }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

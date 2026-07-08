@@ -1,0 +1,3 @@
+## Minimal values for ct install — CRD-only chart has no workloads.
+commonLabels: {}
+commonAnnotations: {}
