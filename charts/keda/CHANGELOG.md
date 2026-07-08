@@ -237,3 +237,8 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   chart's own value would immediately be clobbered. Now `caBundle` only renders when
   `certManagerCertificate` is unset, matching how the two are documented as
   alternatives.
+- Tightened the operator's gRPC metrics-resolution port (9666) ingress rule from
+  port-only (any source) to a `podSelector` restricted to Metrics API Server pods —
+  a portable, reliable selector was available (the same one the Metrics API Server's
+  own egress rule already uses in the reverse direction), so there was no need to
+  leave this one open to any source in-namespace.

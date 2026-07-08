@@ -18,9 +18,14 @@ spec:
   ingress:
     ## Always allow the gRPC channel the Metrics API Server uses to resolve external
     ## metrics — required regardless of metrics.enabled, since it is unrelated to
-    ## Prometheus (see deployment-operator.yaml). Port-only: no portable selector for
-    ## "any pod that happens to run the Metrics API Server" without extra values plumbing.
-    - ports:
+    ## Prometheus (see deployment-operator.yaml). Restricted to metrics-apiserver pods
+    ## specifically, mirroring the podSelector already used on the reverse (egress)
+    ## rule in the Metrics API Server's own policy below.
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "keda.metricsSelectorLabels" . | nindent 14 }}
+      ports:
         - port: 9666
           protocol: TCP
     ## Port-only: health probes come from the kubelet process on the node, which has
