@@ -22,7 +22,9 @@ automountServiceAccountToken: {{ default false .Values.serviceAccount.automountS
 Projected ServiceAccount token volume — for pods that disable automountServiceAccountToken
 at the pod/ServiceAccount level for hardening but still need to authenticate to the
 Kubernetes API (e.g. operators, aggregated API servers, admission webhooks). Mirrors the
-volume Kubernetes would auto-inject, with an explicit short-lived, audience-scoped token.
+volume Kubernetes would auto-inject, with an explicit short-lived token (no `audience` set,
+so it defaults to the cluster's configured default audience — typically the API server
+itself — same as Kubernetes's own auto-generated projection for a regular pod).
 Usage: {{ include "arieotech.serviceAccountTokenVolume" . | nindent N }} inside `volumes:`.
 */}}
 {{- define "arieotech.serviceAccountTokenVolume" -}}

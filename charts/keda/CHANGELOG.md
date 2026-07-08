@@ -122,3 +122,24 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   `/keda-adapter` and `/keda-admission-webhooks`. `ct install` caught this because it
   actually runs the containers — `helm template`/`kubectl apply --dry-run` cannot, since
   neither validates that a container's command actually exists in the image.
+- **Added the missing `ValidatingWebhookConfiguration`.** The admission-webhooks
+  Deployment/Service/RBAC all existed, but nothing actually registered the webhook with
+  the API server — the pods ran and served traffic that never arrived. Added
+  `templates/validatingwebhookconfiguration.yaml` matching upstream KEDA's
+  `config/webhooks/validation_webhooks.yaml` (6 validating webhooks: ScaledObject,
+  ScaledJob, TriggerAuthentication, ClusterTriggerAuthentication, CloudEventSource,
+  ClusterCloudEventSource), plus `admissionWebhooks.caBundle` /
+  `.certManagerCertificate` values so the API server can trust the webhook's TLS cert.
+- **All three components shared one ServiceAccount bound to three different
+  ClusterRoles**, giving every pod the union of all three components' RBAC — including
+  the operator's namespace-scoped Secrets/Leases write access leaking into the
+  admission-webhook and metrics-apiserver pods, and vice versa. Split into three
+  per-component ServiceAccounts (`keda.operatorServiceAccountName`,
+  `.metricsServiceAccountName`, `.webhooksServiceAccountName`), each bound only to its
+  own component's Cluster/RoleBindings.
+- `pdb.maxUnavailable` used a truthy `{{ if }}` check, so an explicit `0` (a valid PDB
+  value, allowed by the schema) was treated as unset and silently fell back to
+  `minAvailable`. Switched to `hasKey` so `0` is honored.
+- Corrected the SOC2 compliance section's claim that "all KEDA components write logs
+  in JSON format" — the Metrics API Server uses klog's plain-text format
+  (`--logtostderr`), not JSON; only the operator and admission webhooks are JSON.

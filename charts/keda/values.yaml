@@ -86,6 +86,15 @@ admissionWebhooks:
   port: 9443
   ## Extra environment variables
   extraEnv: []
+  ## Base64-encoded PEM CA bundle for the ValidatingWebhookConfiguration's clientConfig.
+  ## Without this (or certManagerCertificate below), the API server has no way to trust
+  ## the self-signed cert this component serves — webhook calls will fail, and because
+  ## failurePolicy is Ignore, that means validation is silently skipped, not a hard error.
+  caBundle: ""
+  ## Alternative to caBundle: set to "<namespace>/<certificate-name>" to have
+  ## cert-manager's CA injector auto-populate the webhook config's caBundle from that
+  ## Certificate — see the "Webhook TLS with cert-manager" section in the README.
+  certManagerCertificate: ""
 
 ## -- Shared values (apply globally when component-level override is absent)
 nameOverride: ""

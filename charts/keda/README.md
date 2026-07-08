@@ -78,6 +78,8 @@ intended scope, not as a tenant-isolation security control.
 | `admissionWebhooks.replicaCount` | int | `2` | Admission webhook replicas |
 | `admissionWebhooks.resources` | object | `50m/64Mi` req, `128Mi` limit | Admission webhook container resources |
 | `admissionWebhooks.port` | int | `9443` | Webhook HTTPS port |
+| `admissionWebhooks.caBundle` | string | `""` | Base64-encoded PEM CA bundle for the ValidatingWebhookConfiguration's `clientConfig` |
+| `admissionWebhooks.certManagerCertificate` | string | `""` | `"<namespace>/<certificate-name>"` — has cert-manager's CA injector populate `caBundle` automatically instead |
 | `serviceAccount.create` | bool | `true` | Create a ServiceAccount |
 | `serviceAccount.automountServiceAccountToken` | bool | `false` | Must stay `false` — KEDA uses projected token volumes |
 | `podSecurityContext` / `securityContext` | object | PSA restricted | Pod and container security contexts |
@@ -155,6 +157,15 @@ spec:
 Adjust `secretName` and `dnsNames` to match your actual release name and Service DNS.
 Without cert-manager, populate the same Secret via External Secrets Operator or a
 manually managed TLS Secret.
+
+The API server also needs to trust that cert to call the webhook at all — set
+`admissionWebhooks.certManagerCertificate: "keda/keda-webhooks-tls"` (namespace/name of
+the `Certificate` above) to have cert-manager's CA injector populate the
+`ValidatingWebhookConfiguration`'s `caBundle` automatically, or set
+`admissionWebhooks.caBundle` directly if you're not using cert-manager. Leaving both
+unset means webhook calls fail validation-side; because `failurePolicy` is `Ignore`,
+that fails **open** (ScaledObjects still get created, just without KEDA's own
+validation applied) rather than blocking cluster operations.
 
 ## NetworkPolicy
 
@@ -246,8 +257,11 @@ via `networkPolicy.extraEgress`.
 ## SOC2 Compliance
 
 Structured JSON audit logging is enabled by default (`soc2.auditLogging.enabled=true`).
-All KEDA components write logs to stdout in JSON format — route to your SIEM with a log
-aggregation agent (Fluent Bit, Vector, etc.).
+The operator and admission webhooks write JSON logs to stdout (`operator.logEncoder`,
+default `json`). The Metrics API Server uses klog's plain-text format (`--logtostderr`) —
+it doesn't have a JSON logging flag wired up in this chart. Route what's JSON-structured
+to your SIEM with a log aggregation agent (Fluent Bit, Vector, etc.); the Metrics API
+Server's plain-text lines will need a text/regex parser instead of a JSON one.
 
 ## DPDP Compliance
 

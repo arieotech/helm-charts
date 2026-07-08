@@ -18,8 +18,36 @@
 {{- include "arieotech.selectorLabels" . }}
 {{- end }}
 
-{{- define "keda.serviceAccountName" -}}
-{{- include "arieotech.serviceAccountName" . }}
+{{/*
+Per-component ServiceAccount names. Each component gets its own ServiceAccount so its
+ClusterRole/Role bindings don't leak into the other two components — a single shared
+ServiceAccount bound to all three ClusterRoles would give every pod the union of all
+three components' permissions, defeating least-privilege separation between them.
+If serviceAccount.name is explicitly set, all three components share that one name
+(an intentional opt-out of the per-component split, not the default behavior).
+*/}}
+{{- define "keda.operatorServiceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (printf "%s-operator" (include "keda.fullname" .)) .Values.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.serviceAccount.name }}
+{{- end }}
+{{- end }}
+
+{{- define "keda.metricsServiceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (printf "%s-metrics-apiserver" (include "keda.fullname" .)) .Values.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.serviceAccount.name }}
+{{- end }}
+{{- end }}
+
+{{- define "keda.webhooksServiceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (printf "%s-admission-webhooks" (include "keda.fullname" .)) .Values.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.serviceAccount.name }}
+{{- end }}
 {{- end }}
 
 {{/*

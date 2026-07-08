@@ -33,7 +33,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "keda.serviceAccountName" . }}
+      serviceAccountName: {{ include "keda.webhooksServiceAccountName" . }}
       automountServiceAccountToken: false
       securityContext:
         {{- include "arieotech.podSecurityContext" . | nindent 8 }}

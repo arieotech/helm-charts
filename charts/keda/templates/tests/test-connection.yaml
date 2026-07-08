@@ -12,7 +12,9 @@ metadata:
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   restartPolicy: Never
-  serviceAccountName: {{ include "keda.serviceAccountName" . }}
+  ## Any of the 3 component ServiceAccounts works here — this pod only does HTTP health
+  ## checks, no Kubernetes API calls, and automountServiceAccountToken is false anyway.
+  serviceAccountName: {{ include "keda.operatorServiceAccountName" . }}
   automountServiceAccountToken: false
   securityContext:
     runAsNonRoot: true

@@ -168,7 +168,9 @@
           }
         },
         "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "extraEnv": { "type": "array" }
+        "extraEnv": { "type": "array" },
+        "caBundle": { "type": "string" },
+        "certManagerCertificate": { "type": "string" }
       }
     },
     "nameOverride": { "type": "string" },

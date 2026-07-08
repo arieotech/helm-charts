@@ -16,7 +16,7 @@ roleRef:
   name: {{ include "keda.fullname" . }}-operator
 subjects:
   - kind: ServiceAccount
-    name: {{ include "keda.serviceAccountName" . }}
+    name: {{ include "keda.operatorServiceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
 ## RoleBinding for the namespace-scoped Secrets/Leases Role (see clusterrole.yaml).
@@ -34,7 +34,7 @@ roleRef:
   name: {{ include "keda.fullname" . }}-operator
 subjects:
   - kind: ServiceAccount
-    name: {{ include "keda.serviceAccountName" . }}
+    name: {{ include "keda.operatorServiceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
 ## ClusterRoleBinding for the KEDA Metrics API Server.
@@ -51,7 +51,7 @@ roleRef:
   name: {{ include "keda.fullname" . }}-metrics-apiserver
 subjects:
   - kind: ServiceAccount
-    name: {{ include "keda.serviceAccountName" . }}
+    name: {{ include "keda.metricsServiceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
 ## ClusterRoleBinding: allow the Metrics API Server to delegate auth
@@ -68,7 +68,7 @@ roleRef:
   name: system:auth-delegator
 subjects:
   - kind: ServiceAccount
-    name: {{ include "keda.serviceAccountName" . }}
+    name: {{ include "keda.metricsServiceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
 ## RoleBinding: allow Metrics API Server to read kube-system:extension-apiserver-authentication
@@ -86,7 +86,7 @@ roleRef:
   name: extension-apiserver-authentication-reader
 subjects:
   - kind: ServiceAccount
-    name: {{ include "keda.serviceAccountName" . }}
+    name: {{ include "keda.metricsServiceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
 ## ClusterRoleBinding for the KEDA Admission Webhooks.
@@ -104,7 +104,7 @@ roleRef:
   name: {{ include "keda.fullname" . }}-admission-webhooks
 subjects:
   - kind: ServiceAccount
-    name: {{ include "keda.serviceAccountName" . }}
+    name: {{ include "keda.webhooksServiceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end }}
 ---
