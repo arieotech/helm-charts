@@ -154,3 +154,9 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   moment anyone set `operator.watchNamespace` to a non-empty value, on top of never
   fixing the always-fatal missing-env-var case. Removed the fake flag; added a
   `WATCH_NAMESPACE` env var (from `operator.watchNamespace`) to both deployments.
+- Removed `serviceAccount.automountServiceAccountToken` — every ServiceAccount and pod
+  spec hardcodes `automountServiceAccountToken: false` (required for the projected
+  token volume design to work), so the value had no effect if a user set it to `true`.
+  Added `additionalProperties: false` to the schema's `serviceAccount` object so
+  setting it now fails `helm lint`/`helm install` with a clear error instead of
+  silently doing nothing.

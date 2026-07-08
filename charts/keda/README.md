@@ -81,7 +81,6 @@ intended scope, not as a tenant-isolation security control.
 | `admissionWebhooks.caBundle` | string | `""` | Base64-encoded PEM CA bundle for the ValidatingWebhookConfiguration's `clientConfig` |
 | `admissionWebhooks.certManagerCertificate` | string | `""` | `"<namespace>/<certificate-name>"` — has cert-manager's CA injector populate `caBundle` automatically instead |
 | `serviceAccount.create` | bool | `true` | Create a ServiceAccount |
-| `serviceAccount.automountServiceAccountToken` | bool | `false` | Must stay `false` — KEDA uses projected token volumes |
 | `podSecurityContext` / `securityContext` | object | PSA restricted | Pod and container security contexts |
 | `terminationGracePeriodSeconds` | int | `30` | Grace period for in-flight ScaledObject reconciliations on shutdown |
 | `topologySpreadConstraints` | list | hostname + zone | Spread pods across nodes and AZs |

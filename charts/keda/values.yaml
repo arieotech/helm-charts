@@ -104,8 +104,10 @@ serviceAccount:
   create: true
   name: ""
   annotations: {}
-  ## automountServiceAccountToken must be false; KEDA uses projected token volumes
-  automountServiceAccountToken: false
+## Not configurable: every component's ServiceAccount and pod spec hardcode
+## automountServiceAccountToken: false. KEDA authenticates to the API server via the
+## explicit projected token volume in arieotech.serviceAccountTokenVolume instead —
+## setting this true would be actively wrong for this chart's design, not just a no-op.
 
 podAnnotations: {}
 podLabels: {}

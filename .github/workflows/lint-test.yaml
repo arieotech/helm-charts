@@ -28,7 +28,10 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
         with:
-          # v3.17.0+ required for --take-ownership (see .ct/ct.yaml helm-extra-args)
+          # Bumped from v3.16.0 for general currency. Was previously required for
+          # --take-ownership (Helm 3.17+); that flag is no longer used here — see the
+          # ct install --excluded-charts comment below for how the keda-crds/keda CRD
+          # ownership conflict is actually handled now.
           version: v3.21.2
 
       - name: Set up Python
