@@ -91,9 +91,8 @@ would be inappropriate.
 | `istio.ambient.enabled` | bool | `false` | Add Istio Ambient dataplane labels |
 | `istio.ambient.excludedPorts` | list | `[]` | Ports excluded from ztunnel capture |
 | `soc2.auditLogging.enabled` | bool | `true` | JSON-structured audit logging |
-| `soc2.enforceTLS` | bool | `true` | Enforce TLS on HTTPS endpoints |
-| `dpdp.piiMasking.enabled` | bool | `false` | PII masking toggle (KEDA does not process PII by default) |
-| `dpdp.dataResidency.region` | string | `""` | Data residency metadata propagated to OPA/Gatekeeper |
+| `dpdp.dataResidency.enabled` | bool | `false` | Add the `dpdp.arieotech.com/data-residency-region` pod annotation |
+| `dpdp.dataResidency.region` | string | `""` | Region value for the data-residency annotation, e.g. `"in-mumbai"` |
 | `secrets` | object | `{}` | Arbitrary Secrets created alongside the chart — see [TriggerAuthentication credentials](#triggerauthentication-credentials) |
 | `extraVolumes` / `extraVolumeMounts` | list | `[]` | Extra volumes mounted on every component |
 | `initContainers` / `sidecars` | list | `[]` | Extra init/sidecar containers on the operator pod |
@@ -218,8 +217,9 @@ aggregation agent (Fluent Bit, Vector, etc.).
 
 ## DPDP Compliance
 
-KEDA itself does not process PII. The `dpdp.dataResidency.region` annotation can be added
-to pods to propagate data residency metadata to your policy enforcement layer (OPA/Gatekeeper).
+KEDA itself does not process PII, so there is no masking toggle to configure. Setting
+`dpdp.dataResidency.enabled: true` adds a `dpdp.arieotech.com/data-residency-region: "<region>"`
+annotation to every pod, which your policy enforcement layer (OPA/Gatekeeper) can key off of.
 
 ## Istio Ambient Mesh
 

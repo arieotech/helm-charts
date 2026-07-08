@@ -188,12 +188,12 @@ soc2:
   auditLogging:
     ## Structured JSON audit logging to stdout
     enabled: true
-  enforceTLS: true
 
 ## DPDP compliance defaults
 dpdp:
-  piiMasking:
-    enabled: false
+  ## When enabled, adds a dpdp.arieotech.com/data-residency-region pod annotation
+  ## for your policy enforcement layer (OPA/Gatekeeper) to key off of. KEDA itself
+  ## does not process PII, so there is no masking toggle to wire up here.
   dataResidency:
     enabled: false
     region: ""

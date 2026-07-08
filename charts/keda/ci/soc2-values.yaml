@@ -12,11 +12,11 @@ admissionWebhooks:
 soc2:
   auditLogging:
     enabled: true
-  enforceTLS: false
 
 dpdp:
-  piiMasking:
+  dataResidency:
     enabled: true
+    region: "in-mumbai"
 
 networkPolicy:
   enabled: false

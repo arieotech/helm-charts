@@ -318,19 +318,12 @@
           "properties": {
             "enabled": { "type": "boolean" }
           }
-        },
-        "enforceTLS": { "type": "boolean" }
+        }
       }
     },
     "dpdp": {
       "type": "object",
       "properties": {
-        "piiMasking": {
-          "type": "object",
-          "properties": {
-            "enabled": { "type": "boolean" }
-          }
-        },
         "dataResidency": {
           "type": "object",
           "properties": {

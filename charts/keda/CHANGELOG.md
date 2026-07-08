@@ -55,3 +55,17 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   of a hardcoded `true`.
 - `values.schema.json` now covers `terminationGracePeriodSeconds`, `secrets`, and
   `metricsApiServer.apiService` (previously undocumented in the schema).
+- **Operator, Metrics API Server, and Admission Webhooks pods had no working Kubernetes
+  API access.** All three set `automountServiceAccountToken: false` (and the ServiceAccount
+  itself defaults to the same) with no explicit token volume to compensate — pods would
+  have started with zero API credentials and crash-looped on first reconcile/leader-election
+  attempt. Added `arieotech.serviceAccountTokenVolume` / `...VolumeMount` helpers to
+  `arieotech-lib` and wired them into all three Deployments.
+- Metrics API Server container passed `/adapter` as the first element of `args` instead of
+  `command`, unlike the operator's `command: [/keda]` pattern. Depending on the image's
+  ENTRYPOINT, this could run `/adapter` twice (once as entrypoint, once as its own first
+  argument). Moved to `command: [/adapter]`, matching the operator.
+- Removed `soc2.enforceTLS` and `dpdp.piiMasking` — neither was referenced by any template,
+  so toggling them had no effect. `dpdp.dataResidency.enabled` now actually does something:
+  it adds a `dpdp.arieotech.com/data-residency-region` pod annotation on all three
+  components (previously declared in values/schema/README but never wired in).

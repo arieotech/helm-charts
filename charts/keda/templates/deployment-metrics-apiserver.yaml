@@ -21,6 +21,9 @@ spec:
         {{- end }}
       annotations:
         {{- include "arieotech.istioExcludedPorts" . | nindent 8 }}
+        {{- if .Values.dpdp.dataResidency.enabled }}
+        dpdp.arieotech.com/data-residency-region: {{ .Values.dpdp.dataResidency.region | quote }}
+        {{- end }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -41,8 +44,9 @@ spec:
         - name: keda-metrics-apiserver
           image: {{ include "keda.componentImage" .Values.metricsApiServer.image | quote }}
           imagePullPolicy: {{ .Values.metricsApiServer.image.pullPolicy }}
-          args:
+          command:
             - /adapter
+          args:
             - --secure-port={{ .Values.metricsApiServer.port }}
             - --logtostderr=true
             - --v={{ .Values.metricsApiServer.logLevel }}
@@ -91,12 +95,14 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            {{- include "arieotech.serviceAccountTokenVolumeMount" . | nindent 12 }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
+        {{- include "arieotech.serviceAccountTokenVolume" . | nindent 8 }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

@@ -22,6 +22,9 @@ spec:
         {{- end }}
       annotations:
         {{- include "arieotech.istioExcludedPorts" . | nindent 8 }}
+        {{- if .Values.dpdp.dataResidency.enabled }}
+        dpdp.arieotech.com/data-residency-region: {{ .Values.dpdp.dataResidency.region | quote }}
+        {{- end }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -96,6 +99,7 @@ spec:
             - name: certs
               mountPath: /certs
               readOnly: true
+            {{- include "arieotech.serviceAccountTokenVolumeMount" . | nindent 12 }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -107,6 +111,7 @@ spec:
           secret:
             secretName: {{ include "keda.fullname" . }}-webhooks-tls
             optional: true
+        {{- include "arieotech.serviceAccountTokenVolume" . | nindent 8 }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

@@ -22,3 +22,5 @@ annotations:
   artifacthub.io/changes: |
     - kind: added
       description: "arieotech.istioAmbientLabels and arieotech.istioExcludedPorts helpers for Istio Ambient Mesh pod label and ztunnel port exclusion annotation"
+    - kind: added
+      description: "arieotech.serviceAccountTokenVolume and arieotech.serviceAccountTokenVolumeMount helpers — explicit projected token volume for pods that disable automountServiceAccountToken but still need Kubernetes API access"

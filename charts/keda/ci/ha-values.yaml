@@ -32,11 +32,8 @@ metrics:
 soc2:
   auditLogging:
     enabled: true
-  enforceTLS: true
 
 dpdp:
-  piiMasking:
-    enabled: false
   dataResidency:
     enabled: false
 

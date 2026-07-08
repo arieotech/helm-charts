@@ -19,7 +19,4 @@ networkPolicy:
 metrics:
   enabled: false
 
-soc2:
-  enforceTLS: false
-
 topologySpreadConstraints: []
