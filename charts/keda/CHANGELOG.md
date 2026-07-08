@@ -113,3 +113,12 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   actual documented defaults (2/5). Added the missing
   `autoscaling.targetMemoryUtilizationPercentage` to `values.schema.json` and
   documented it (the template already supported it).
+- **Metrics API Server and Admission Webhooks containers crash-looped on real clusters**
+  (`exec: "/adapter": stat /adapter: no such file or directory`) — an earlier fix moved
+  `/adapter`/`/webhooks` from `args` into `command`, but those binary paths were wrong.
+  Verified the actual entrypoints against the published `ghcr.io/kedacore/keda-metrics-apiserver:2.16.0`
+  and `ghcr.io/kedacore/keda-admission-webhooks:2.16.0` image configs (and the upstream
+  `Dockerfile.adapter`/`Dockerfile.webhooks` at the `v2.16.0` tag): the real paths are
+  `/keda-adapter` and `/keda-admission-webhooks`. `ct install` caught this because it
+  actually runs the containers — `helm template`/`kubectl apply --dry-run` cannot, since
+  neither validates that a container's command actually exists in the image.

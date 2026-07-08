@@ -45,7 +45,7 @@ spec:
           image: {{ include "keda.componentImage" .Values.metricsApiServer.image | quote }}
           imagePullPolicy: {{ .Values.metricsApiServer.image.pullPolicy }}
           command:
-            - /adapter
+            - /keda-adapter
           args:
             - --secure-port={{ .Values.metricsApiServer.port }}
             - --logtostderr=true

@@ -46,7 +46,7 @@ spec:
           image: {{ include "keda.componentImage" .Values.admissionWebhooks.image | quote }}
           imagePullPolicy: {{ .Values.admissionWebhooks.image.pullPolicy }}
           command:
-            - /webhooks
+            - /keda-admission-webhooks
           args:
             - --zap-log-level={{ .Values.operator.logLevel }}
             - --zap-encoder={{ .Values.operator.logEncoder }}
