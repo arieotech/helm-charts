@@ -85,3 +85,27 @@ typically runs outside the pod network) — see the comment in values.yaml.
       protocol: TCP
 {{- end }}
 {{- end }}
+
+{{/*
+NetworkPolicy ingress rule for traffic FROM the Kubernetes API server (e.g.
+kube-aggregator proxying to the Metrics API Server, or kube-apiserver calling an
+admission webhook). Restricted to networkPolicy.kubeApiServerCIDR when set (the same
+value used for the egress rule above, since both describe the API server's address);
+otherwise port-only. Accepts a dict: {root: $, port: <port number>}.
+*/}}
+{{- define "keda.kubeApiServerIngressRule" -}}
+{{- if .root.Values.networkPolicy.kubeApiServerCIDR }}
+- from:
+    - ipBlock:
+        cidr: {{ .root.Values.networkPolicy.kubeApiServerCIDR }}
+  ports:
+    - port: {{ .port }}
+      protocol: TCP
+{{- else }}
+## Port-only: allows inbound traffic from ANY source on this port, not just the API
+## server. Set networkPolicy.kubeApiServerCIDR to restrict this.
+- ports:
+    - port: {{ .port }}
+      protocol: TCP
+{{- end }}
+{{- end }}

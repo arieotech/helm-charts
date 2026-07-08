@@ -159,13 +159,14 @@ pdb:
   enabled: true
   minAvailable: 1
 
-## HPA for the operator deployment (unusual but provided for completeness)
+## HPA for the operator Deployment only (unusual but provided for completeness) —
+## metricsApiServer and admissionWebhooks are not scaled by this and have no HPA.
 autoscaling:
   enabled: false
-  kind: Deployment
   minReplicas: 2
   maxReplicas: 5
   targetCPUUtilizationPercentage: 70
+  # targetMemoryUtilizationPercentage: 80
 
 ## Prometheus metrics
 metrics:

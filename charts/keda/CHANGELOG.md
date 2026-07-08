@@ -98,3 +98,18 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   scopes write access to `secrets`/`leases` to its own release namespace via a separate `Role`.
   Rewrote the ClusterRole to match upstream's actual `config/rbac/role.yaml` verb-for-verb, and
   added the namespace-scoped `Role`/`RoleBinding` for `secrets`/`leases` writes.
+- NetworkPolicy ingress rules for kube-aggregator→Metrics-API-Server and
+  kube-apiserver→webhook traffic had no `from:` selector, so — like the egress rules
+  fixed above — they allowed inbound from any source on those ports despite comments
+  implying otherwise. Both now use `networkPolicy.kubeApiServerCIDR` (the same value
+  used for egress) to restrict the source when set. Corrected the remaining
+  kubelet-health-check and Prometheus-scrape ingress rules' comments to state plainly
+  that they're port-only — Kubernetes NetworkPolicy has no portable selector for
+  either kubelet or an arbitrary scraper.
+- Removed `autoscaling.kind` — the operator is the only workload the HPA can target
+  and is always rendered as a Deployment, so `StatefulSet` in the schema's enum could
+  never correspond to a real object; the HPA's `scaleTargetRef.kind` is now hardcoded.
+  Fixed the HPA's `minReplicas`/`maxReplicas` fallback (1/3) to match values.yaml's
+  actual documented defaults (2/5). Added the missing
+  `autoscaling.targetMemoryUtilizationPercentage` to `values.schema.json` and
+  documented it (the template already supported it).

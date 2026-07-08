@@ -16,11 +16,15 @@ spec:
     - Ingress
     - Egress
   ingress:
-    ## Allow Prometheus scrape on metrics port
+    ## Port-only: allows inbound from ANY source on the metrics port, not restricted
+    ## to Prometheus specifically. Kubernetes NetworkPolicy has no portable selector
+    ## for an arbitrary in- or out-of-cluster scraper; use networkPolicy.extraIngress
+    ## to add a podSelector/namespaceSelector for your Prometheus if you need this tighter.
     - ports:
         - port: 9666
           protocol: TCP
-    ## Allow health check from kubelet
+    ## Port-only: health probes come from the kubelet process on the node, which has
+    ## no selectable pod/namespace identity Kubernetes NetworkPolicy can match.
     - ports:
         - port: 8080
           protocol: TCP
@@ -60,15 +64,17 @@ spec:
     - Ingress
     - Egress
   ingress:
-    ## Allow kube-aggregator to reach the Metrics API Server on HTTPS
-    - ports:
-        - port: {{ .Values.metricsApiServer.port }}
-          protocol: TCP
-    ## Health checks from kubelet
+    ## Allow kube-aggregator to reach the Metrics API Server on HTTPS. kube-aggregator
+    ## is part of the API server process, so this reuses networkPolicy.kubeApiServerCIDR;
+    ## port-only (any source) when that value is unset — see the helper's doc comment.
+    {{- include "keda.kubeApiServerIngressRule" (dict "root" $ "port" .Values.metricsApiServer.port) | nindent 4 }}
+    ## Port-only: health probes come from the kubelet process on the node, which has
+    ## no selectable pod/namespace identity Kubernetes NetworkPolicy can match.
     - ports:
         - port: 8080
           protocol: TCP
-    ## Prometheus scrape
+    ## Port-only: allows inbound from ANY source on the metrics port, not restricted
+    ## to Prometheus specifically — see the equivalent comment on the operator policy above.
     - ports:
         - port: 9022
           protocol: TCP
@@ -114,15 +120,17 @@ spec:
     - Ingress
     - Egress
   ingress:
-    ## Allow kube-apiserver to reach the webhook on the webhook port
-    - ports:
-        - port: {{ .Values.admissionWebhooks.port }}
-          protocol: TCP
-    ## Health checks from kubelet
+    ## Allow kube-apiserver to reach the webhook on the webhook port. Reuses
+    ## networkPolicy.kubeApiServerCIDR (same rationale as the metrics-apiserver
+    ## ingress rule above); port-only (any source) when that value is unset.
+    {{- include "keda.kubeApiServerIngressRule" (dict "root" $ "port" .Values.admissionWebhooks.port) | nindent 4 }}
+    ## Port-only: health probes come from the kubelet process on the node, which has
+    ## no selectable pod/namespace identity Kubernetes NetworkPolicy can match.
     - ports:
         - port: 8080
           protocol: TCP
-    ## Prometheus scrape of admission webhook metrics
+    ## Port-only: allows inbound from ANY source on the metrics port, not restricted
+    ## to Prometheus specifically — see the equivalent comment on the operator policy above.
     - ports:
         - port: 8081
           protocol: TCP

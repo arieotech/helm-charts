@@ -14,11 +14,13 @@ metadata:
     app.kubernetes.io/component: operator
 spec:
   scaleTargetRef:
+    ## Always Deployment: the operator is the only workload this HPA can target, and
+    ## it is always rendered as a Deployment (see templates/deployment-operator.yaml).
     apiVersion: apps/v1
-    kind: {{ .Values.autoscaling.kind | default "Deployment" }}
+    kind: Deployment
     name: {{ include "keda.fullname" . }}-operator
-  minReplicas: {{ default 1 .Values.autoscaling.minReplicas }}
-  maxReplicas: {{ default 3 .Values.autoscaling.maxReplicas }}
+  minReplicas: {{ default 2 .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ default 5 .Values.autoscaling.maxReplicas }}
   metrics:
     {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
     - type: Resource

@@ -88,7 +88,10 @@ intended scope, not as a tenant-isolation security control.
 | `networkPolicy.extraIngress` / `extraEgress` | list | `[]` | Additional rules appended to the default allow-list |
 | `pdb.enabled` | bool | `true` | Deploy PodDisruptionBudget |
 | `pdb.minAvailable` | int | `1` | Minimum available pods per component |
-| `autoscaling.enabled` | bool | `false` | HPA for the operator Deployment (uncommon, provided for completeness) |
+| `autoscaling.enabled` | bool | `false` | HPA for the operator Deployment only (uncommon, provided for completeness) |
+| `autoscaling.minReplicas` / `maxReplicas` | int | `2` / `5` | HPA replica bounds |
+| `autoscaling.targetCPUUtilizationPercentage` | int | `70` | CPU target; omit to disable the CPU metric |
+| `autoscaling.targetMemoryUtilizationPercentage` | int | unset | Optional memory target metric, disabled unless set |
 | `metrics.enabled` | bool | `true` | Expose Prometheus metrics |
 | `metrics.serviceMonitor.enabled` | bool | `false` | Create ServiceMonitor (requires Prometheus Operator) |
 | `metrics.prometheusRule.enabled` | bool | `false` | Create PrometheusRule with alert rules |
