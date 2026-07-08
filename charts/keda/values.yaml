@@ -68,7 +68,13 @@ metricsApiServer:
 
 ## -- KEDA Admission Webhooks component
 admissionWebhooks:
-  enabled: true
+  ## Defaults to disabled: this chart doesn't provision the webhook server's TLS cert
+  ## for you (see the "Webhook TLS with cert-manager" README section), so enabling
+  ## this without also setting up a Certificate + admissionWebhooks.caBundle or
+  ## .certManagerCertificate produces a CrashLoopBackOff Deployment and a
+  ## ValidatingWebhookConfiguration that fails open (harmless, since failurePolicy is
+  ## Ignore, but provides no actual validation). Enable once TLS is provisioned.
+  enabled: false
   image:
     registry: ghcr.io
     repository: kedacore/keda-admission-webhooks

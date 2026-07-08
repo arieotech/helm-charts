@@ -74,7 +74,7 @@ intended scope, not as a tenant-isolation security control.
 | `metricsApiServer.logLevel` | string | `"0"` | glog verbosity level |
 | `metricsApiServer.apiService.insecureSkipTLSVerify` | bool | `true` | Skip TLS verification for the aggregated API — required unless `caBundle` is set, since the adapter self-signs its cert |
 | `metricsApiServer.apiService.caBundle` | string | `""` | Base64-encoded PEM CA bundle; takes precedence over `insecureSkipTLSVerify` when set |
-| `admissionWebhooks.enabled` | bool | `true` | Deploy admission webhooks |
+| `admissionWebhooks.enabled` | bool | `false` | Deploy admission webhooks — requires TLS provisioned first, see [Webhook TLS with cert-manager](#webhook-tls-with-cert-manager) |
 | `admissionWebhooks.replicaCount` | int | `2` | Admission webhook replicas |
 | `admissionWebhooks.resources` | object | `50m/64Mi` req, `128Mi` limit | Admission webhook container resources |
 | `admissionWebhooks.port` | int | `9443` | Webhook HTTPS port |
@@ -248,7 +248,7 @@ via `networkPolicy.extraEgress`.
 - [ ] `pdb.enabled=true` (default)
 - [ ] `metrics.serviceMonitor.enabled=true` if using Prometheus Operator
 - [ ] `metrics.prometheusRule.enabled=true` for alert rules
-- [ ] Admission webhook TLS cert provisioned (cert-manager `Certificate` or External Secrets)
+- [ ] Admission webhook TLS cert provisioned, then `admissionWebhooks.enabled=true` (default `false`; a plain install without a cert first will crash-loop the webhook pods)
 - [ ] `soc2.auditLogging.enabled=true` (default) for audit log compliance
 - [ ] Image digest pinning: set `operator.image.digest` / `metricsApiServer.image.digest` / `admissionWebhooks.image.digest`
 - [ ] `replicaCount >= 2` for all components (default)

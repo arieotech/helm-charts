@@ -212,3 +212,12 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
     on port 9022 being correct), but means `ServiceMonitor` scraping would get no real
     data from that port. Left as-is to keep this change's blast radius to what's actually
     required for pods to reach Ready — worth a follow-up pass.
+- **`admissionWebhooks.enabled` now defaults to `false`.** This chart never provisioned
+  the webhook server's TLS cert, so a plain `helm install` with the old default
+  (`true`) produced a CrashLoopBackOff webhooks Deployment out of the box. Also
+  disabled in the `ha-values.yaml` CI profile — `ct` generates a random namespace per
+  test run, so there's no way to pre-provision a namespace-scoped Certificate/Secret
+  for it there either. Real CI coverage of the webhook+TLS path needs either a
+  chart-generated self-signed cert (a natural follow-up: many charts solve exactly
+  this with Helm's `genSelfSignedCert`) or a values profile with a real `caBundle`;
+  neither exists yet.
