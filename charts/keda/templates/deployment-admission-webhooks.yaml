@@ -20,14 +20,7 @@ spec:
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      annotations:
-        {{- include "arieotech.istioExcludedPorts" . | nindent 8 }}
-        {{- if .Values.dpdp.dataResidency.enabled }}
-        dpdp.arieotech.com/data-residency-region: {{ .Values.dpdp.dataResidency.region | quote }}
-        {{- end }}
-        {{- with .Values.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+      {{- include "keda.podAnnotations" . | nindent 6 }}
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:

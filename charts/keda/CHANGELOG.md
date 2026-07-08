@@ -160,3 +160,12 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   Added `additionalProperties: false` to the schema's `serviceAccount` object so
   setting it now fails `helm lint`/`helm install` with a clear error instead of
   silently doing nothing.
+- `metadata.annotations` on all three Deployments' pod templates rendered
+  unconditionally, so with the defaults (no Istio ambient, no DPDP data residency, no
+  `podAnnotations`) it rendered as `annotations:` with nothing after it — YAML null
+  where Kubernetes expects a map. The API server tolerated it in testing, but it's not
+  something to rely on. Added `keda.podAnnotations` (in `_helpers.tpl`), which only
+  emits the `annotations:` key when at least one of the three sources has content;
+  verified against each source individually, all three combined, and a multi-key
+  `podAnnotations` value (to make sure a helper bug didn't just move the indentation
+  problem into the multi-line case).

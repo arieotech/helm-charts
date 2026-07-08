@@ -59,6 +59,32 @@ app.kubernetes.io/component: operator
 {{- end }}
 
 {{/*
+Pod annotations block (Istio ambient ztunnel exclusion + DPDP data-residency +
+user-supplied podAnnotations), emitted only when at least one is actually present.
+With none set (the default), an unconditional `annotations:` key would render as
+YAML null, which Kubernetes expects to be a map. Usage:
+{{ include "keda.podAnnotations" . | nindent 6 }} in a pod template's `metadata:`.
+*/}}
+{{- define "keda.podAnnotations" -}}
+{{- $parts := list -}}
+{{- with (include "arieotech.istioExcludedPorts" . | trim) }}
+{{- $parts = append $parts . }}
+{{- end }}
+{{- if .Values.dpdp.dataResidency.enabled }}
+{{- $parts = append $parts (printf "dpdp.arieotech.com/data-residency-region: %s" (.Values.dpdp.dataResidency.region | quote)) }}
+{{- end }}
+{{- with .Values.podAnnotations }}
+{{- $parts = append $parts (trim (toYaml .)) }}
+{{- end }}
+{{- if $parts }}
+annotations:
+{{- range $parts }}
+{{ indent 2 . }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
 Metrics API Server component selector labels.
 */}}
 {{- define "keda.metricsSelectorLabels" -}}
