@@ -221,3 +221,14 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   chart-generated self-signed cert (a natural follow-up: many charts solve exactly
   this with Helm's `genSelfSignedCert`) or a values profile with a real `caBundle`;
   neither exists yet.
+- `templates/pdb.yaml`'s `---` document separators were unconditional, so when a PDB
+  in the middle or at the end of the file didn't render (its component's replicaCount
+  was 1), the separator could produce a stray empty YAML document. Moved each `---` to
+  immediately precede an actually-rendered PDB instead. Verified with 0, 1
+  (asymmetric), and all 3 PDBs rendering — no stray separators in any case.
+- `validatingwebhookconfiguration.yaml` rendered a user-supplied `caBundle` even when
+  `certManagerCertificate` was also set — cert-manager's CA injector owns and
+  overwrites that field on reconcile regardless, so setting both just meant the
+  chart's own value would immediately be clobbered. Now `caBundle` only renders when
+  `certManagerCertificate` is unset, matching how the two are documented as
+  alternatives.

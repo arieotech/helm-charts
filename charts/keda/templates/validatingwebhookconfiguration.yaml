@@ -32,7 +32,10 @@ webhooks:
         namespace: {{ $.Release.Namespace }}
         path: {{ .path }}
         port: {{ $.Values.admissionWebhooks.port }}
-      {{- if $.Values.admissionWebhooks.caBundle }}
+      {{- if and $.Values.admissionWebhooks.caBundle (not $.Values.admissionWebhooks.certManagerCertificate) }}
+      ## Only rendered when certManagerCertificate is unset — when both are set,
+      ## cert-manager's CA injector owns and overwrites this field on reconcile,
+      ## so rendering our own value here would just fight it.
       caBundle: {{ $.Values.admissionWebhooks.caBundle | quote }}
       {{- end }}
     ## Fail open: if the webhook is unreachable, admission proceeds without KEDA's

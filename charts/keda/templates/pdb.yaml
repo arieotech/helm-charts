@@ -21,8 +21,8 @@ spec:
   minAvailable: {{ default 1 .Values.pdb.minAvailable }}
   {{- end }}
 {{- end }}
----
 {{- if gt (int .Values.metricsApiServer.replicaCount) 1 }}
+---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -42,8 +42,8 @@ spec:
   {{- end }}
 {{- end }}
 {{- if .Values.admissionWebhooks.enabled }}
----
 {{- if gt (int .Values.admissionWebhooks.replicaCount) 1 }}
+---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
