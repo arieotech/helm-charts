@@ -76,17 +76,25 @@ spec:
     ## Allow kube-aggregator to reach the Metrics API Server on HTTPS. kube-aggregator
     ## is part of the API server process, so this reuses networkPolicy.kubeApiServerCIDR;
     ## port-only (any source) when that value is unset — see the helper's doc comment.
+    ##
+    ## CAVEAT: kubelet's health/readiness probes also hit this same port (see
+    ## deployment-metrics-apiserver.yaml — there is no separate health port on this
+    ## binary). If you set networkPolicy.kubeApiServerCIDR, it restricts this rule to
+    ## that CIDR only, which also blocks kubelet's probe traffic (kubelet has no
+    ## selectable identity NetworkPolicy can carve out an exception for) and leaves
+    ## this Deployment permanently NotReady. There is no NetworkPolicy-only way to
+    ## allow "kube-aggregator from a specific CIDR" and "kubelet from the node" on the
+    ## same port simultaneously — adding an unconditional rule for kubelet would just
+    ## make the CIDR restriction on this rule meaningless. Do not set
+    ## kubeApiServerCIDR while running with this chart's default health-check setup.
     {{- include "keda.kubeApiServerIngressRule" (dict "root" $ "port" .Values.metricsApiServer.port) | nindent 4 }}
-    ## Port-only: health probes come from the kubelet process on the node, which has
-    ## no selectable pod/namespace identity Kubernetes NetworkPolicy can match.
+    {{- if .Values.metrics.enabled }}
+    ## Port-only: allows inbound from ANY source on the Prometheus port, not restricted
+    ## to Prometheus specifically — see the equivalent comment on the operator policy above.
     - ports:
         - port: 8080
           protocol: TCP
-    ## Port-only: allows inbound from ANY source on the metrics port, not restricted
-    ## to Prometheus specifically — see the equivalent comment on the operator policy above.
-    - ports:
-        - port: 9022
-          protocol: TCP
+    {{- end }}
     {{- with .Values.networkPolicy.extraIngress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

@@ -191,6 +191,14 @@ Once set, that rule becomes `to: [{ ipBlock: { cidr: ... } }]` and no longer per
 arbitrary HTTPS egress. This isn't set by default because the API server's address is
 cluster-specific and not knowable ahead of time by a generic chart.
 
+**Do not set `kubeApiServerCIDR` if you rely on this chart's default health checks
+for the Metrics API Server.** Its liveness/readiness probes hit the same HTTPS port
+as kube-aggregator traffic (there's no separate health port on that binary), and
+`kubeApiServerCIDR` restricts *ingress* on that port too — which also blocks
+kubelet's probe traffic, since kubelet has no selectable identity NetworkPolicy can
+carve an exception out for. There's no NetworkPolicy-only way to allow both "the API
+server from a specific CIDR" and "kubelet from the node" on the same port at once.
+
 ## Deploying with ArgoCD
 
 `keda-crds` must be installed (and healthy) before `keda`, since the operator and

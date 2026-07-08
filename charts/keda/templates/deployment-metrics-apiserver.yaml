@@ -64,12 +64,15 @@ spec:
             - name: https
               containerPort: {{ .Values.metricsApiServer.port }}
               protocol: TCP
-            - name: health
+            {{- if .Values.metrics.enabled }}
+            ## The adapter's real --port default (cmd/adapter/main.go's
+            ## RunMetricsServer, always started regardless of any flag — this gate
+            ## only controls whether the chart exposes/advertises it via Service and
+            ## NetworkPolicy, not whether the process listens).
+            - name: metrics
               containerPort: 8080
               protocol: TCP
-            - name: metrics
-              containerPort: 9022
-              protocol: TCP
+            {{- end }}
           ## Verified against KEDA's own upstream deployment manifest
           ## (config/metrics-server/deployment.yaml @ v2.16.0): the adapter serves
           ## /healthz and /readyz on the secure API port over HTTPS — there is no

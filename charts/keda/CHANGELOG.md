@@ -205,13 +205,18 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
     previously-unconditional operator NetworkPolicy rule on port 9666 (now correctly
     understood as the always-required gRPC channel, left unconditional) from a new,
     separate rule for the real Prometheus port 8080 (conditional on `metrics.enabled`).
-  - Known follow-up not fixed in this pass: the Metrics API Server's own `metrics`
-    container port is declared as `9022`, which doesn't match the adapter's real `--port`
-    default of `8080` for its Prometheus endpoint (`cmd/adapter/main.go`'s
-    `RunMetricsServer`). This doesn't block installs or probes (nothing currently depends
-    on port 9022 being correct), but means `ServiceMonitor` scraping would get no real
-    data from that port. Left as-is to keep this change's blast radius to what's actually
-    required for pods to reach Ready — worth a follow-up pass.
+  - Follow-up completed: removed the Metrics API Server's vestigial `health` container
+    port (8080) — there is no separate health port on this binary, health lives on the
+    secure `https` port. Corrected its `metrics` port from the fictional `9022` to the
+    adapter's real `--port` default of `8080` (`cmd/adapter/main.go`'s
+    `RunMetricsServer`, always running regardless of `metrics.enabled` — the gate only
+    controls whether the chart exposes/advertises it via Service and NetworkPolicy).
+    Updated `service-metrics-apiserver.yaml` and `networkpolicy.yaml` to match, and
+    documented (in both the template and the README's NetworkPolicy section) that
+    `networkPolicy.kubeApiServerCIDR` and this component's default health checks are
+    mutually exclusive: both kube-aggregator traffic and kubelet's probes hit the same
+    `https` port, and NetworkPolicy has no way to allow "the API server from a specific
+    CIDR" and "kubelet from the node" on the same port simultaneously.
 - **`admissionWebhooks.enabled` now defaults to `false`.** This chart never provisioned
   the webhook server's TLS cert, so a plain `helm install` with the old default
   (`true`) produced a CrashLoopBackOff webhooks Deployment out of the box. Also
