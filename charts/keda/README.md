@@ -117,8 +117,8 @@ secrets:
       connectionString: "amqp://user:pass@rabbitmq:5672/vhost"
 ```
 
-Reference the generated Secret name (`<release>-keda-redis-trigger-auth`) from your own
-`TriggerAuthentication` resources.
+Reference the generated Secret name (`keda-redis-trigger-auth` for a release named
+`keda`) from your own `TriggerAuthentication` resources.
 
 ## Webhook TLS with cert-manager
 
@@ -180,7 +180,7 @@ chart was not installed, or was installed after `keda`. Install/sync `keda-crds`
 and confirm with `kubectl get crd | grep keda.sh`.
 
 **Admission webhook pods stuck `CrashLoopBackOff` on startup:** The
-`<release>-keda-webhooks-tls` Secret does not exist yet. See
+`<fullname>-webhooks-tls` Secret does not exist yet. See
 [Webhook TLS with cert-manager](#webhook-tls-with-cert-manager). You can temporarily set
 `admissionWebhooks.enabled: false` to unblock ScaledObject changes while TLS is fixed.
 

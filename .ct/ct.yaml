@@ -5,6 +5,12 @@ excluded-charts:
   - arieotech-lib
 chart-repos:
   - cert-manager=https://charts.jetstack.io
-helm-extra-args: --timeout 600s
+## --take-ownership: bootstrap.sh pre-applies keda-crds' rendered CRDs via kubectl
+## (cluster-scoped, so they must exist before the `keda` chart is install-tested —
+## ct processes chart dirs alphabetically, and "keda" sorts before "keda-crds").
+## Without this flag, ct's own `helm install` of the keda-crds chart later in the
+## run fails: the CRDs already exist without Helm's ownership annotations, and
+## Helm refuses to adopt them. No-op for charts with no pre-existing resources.
+helm-extra-args: --timeout 600s --take-ownership
 validate-maintainers: false
 check-version-increment: true
