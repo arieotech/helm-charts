@@ -19,6 +19,24 @@ subjects:
     name: {{ include "keda.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
+## RoleBinding for the namespace-scoped Secrets/Leases Role (see clusterrole.yaml).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "keda.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "keda.fullname" . }}-operator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "keda.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
 ## ClusterRoleBinding for the KEDA Metrics API Server.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

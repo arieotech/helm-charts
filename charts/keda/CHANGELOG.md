@@ -90,3 +90,11 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   Deployments are suffixed, e.g. `-operator`, so the HPA would have pointed at a non-existent
   workload). Rewrote both as chart-local templates: a PDB per component, and an HPA scoped to
   the operator only, matching what `autoscaling.enabled`'s doc comment always said it did.
+- **Operator ClusterRole was significantly over-privileged.** It granted full CRUD
+  (`create`/`update`/`patch`/`delete`) cluster-wide on `configmaps`, `pods`, `secrets`,
+  `serviceaccounts`, `services`, KEDA CRDs, and `leases` — upstream KEDA 2.16.0 only needs
+  `get`/`list`/`watch` on those core resources cluster-wide, `get`/`list`/`patch`/`update`/`watch`
+  on the CRDs it reconciles (it doesn't create/delete ScaledObjects/ScaledJobs itself), and
+  scopes write access to `secrets`/`leases` to its own release namespace via a separate `Role`.
+  Rewrote the ClusterRole to match upstream's actual `config/rbac/role.yaml` verb-for-verb, and
+  added the namespace-scoped `Role`/`RoleBinding` for `secrets`/`leases` writes.

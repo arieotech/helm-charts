@@ -12,25 +12,75 @@ metadata:
   labels:
     {{- include "keda.labels" . | nindent 4 }}
     app.kubernetes.io/component: operator
+## Matches the upstream KEDA 2.16.0 operator ClusterRole verb-for-verb
+## (github.com/kedacore/keda config/rbac/role.yaml @ v2.16.0) — the operator does not
+## create/delete most of these resources itself, only reconciles/patches status and
+## finalizers on what it owns. Write access to Secrets and Leases is granted only
+## within this chart's own release namespace via the Role below, matching upstream's
+## namespaced keda-operator Role — not cluster-wide.
 rules:
-  ## Core resources the operator reads/writes for autoscaling
   - apiGroups: [""]
     resources:
       - configmaps
       - configmaps/status
-      - events
       - pods
-      - pods/log
       - secrets
-      - serviceaccounts
       - services
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources:
+      - events
+    verbs: ["create", "patch"]
+  - apiGroups: [""]
+    resources:
+      - serviceaccounts
+    verbs: ["list", "watch"]
+
+  ## Generic read on any resource, plus generic scale-subresource access, covers
+  ## arbitrary ScaleTarget kinds KEDA doesn't know about ahead of time.
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get"]
+  - apiGroups: ["*"]
+    resources: ["*/scale"]
+    verbs: ["get", "list", "patch", "update", "watch"]
+
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources:
+      - validatingwebhookconfigurations
+    verbs: ["get", "list", "patch", "update", "watch"]
+
+  - apiGroups: ["apiregistration.k8s.io"]
+    resources:
+      - apiservices
+    verbs: ["get", "list", "patch", "update", "watch"]
+
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - statefulsets
+    verbs: ["list", "watch"]
 
   ## Horizontal Pod Autoscaler
   - apiGroups: ["autoscaling"]
     resources:
       - horizontalpodautoscalers
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  ## Batch resources (ScaledJob)
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  ## CloudEventSource custom resources
+  - apiGroups: ["eventing.keda.sh"]
+    resources:
+      - cloudeventsources
+      - cloudeventsources/status
+      - clustercloudeventsources
+      - clustercloudeventsources/status
+    verbs: ["get", "list", "patch", "update", "watch"]
 
   ## KEDA custom resources
   - apiGroups: ["keda.sh"]
@@ -45,56 +95,33 @@ rules:
       - triggerauthentications/status
       - clustertriggerauthentications
       - clustertriggerauthentications/status
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    verbs: ["get", "list", "patch", "update", "watch"]
 
-  ## CloudEventSource custom resources
-  - apiGroups: ["eventing.keda.sh"]
-    resources:
-      - cloudeventsources
-      - cloudeventsources/status
-      - clustercloudeventsources
-      - clustercloudeventsources/status
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-
-  ## Scale subresource on workloads
-  - apiGroups:
-      - apps
-      - ""
-    resources:
-      - deployments
-      - replicasets
-      - statefulsets
-      - replicationcontrollers
-    verbs: ["get", "list", "watch", "update", "patch"]
-  - apiGroups: ["apps"]
-    resources:
-      - deployments/scale
-      - replicasets/scale
-      - statefulsets/scale
-    verbs: ["get", "update", "patch"]
-  - apiGroups: [""]
-    resources:
-      - replicationcontrollers/scale
-    verbs: ["get", "update", "patch"]
-
-  ## Custom/external workloads (KEDA ScaleTarget)
-  - apiGroups: ["*"]
-    resources: ["*/scale"]
-    verbs: ["get", "update", "patch"]
-
-  ## Batch resources (ScaledJob)
-  - apiGroups: ["batch"]
-    resources:
-      - jobs
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-
-  ## CRD introspection (for dynamic validation)
+  ## CRD introspection (Arieotech addition for dynamic validation — not in upstream)
   - apiGroups: ["apiextensions.k8s.io"]
     resources:
       - customresourcedefinitions
     verbs: ["get", "list", "watch"]
-
-  ## Status subresource access
+---
+## Role for the KEDA operator, scoped to this chart's own release namespace — matches
+## upstream's namespaced keda-operator Role. The ClusterRole above only grants
+## cluster-wide READ on Secrets (TriggerAuthentication resolution may reference Secrets
+## in other namespaces); write access to Secrets and Leases is intentionally namespace-
+## scoped, since the operator only needs to write its own leader-election Lease and any
+## Secrets it manages itself.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "keda.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+rules:
+  - apiGroups: [""]
+    resources:
+      - secrets
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["coordination.k8s.io"]
     resources:
       - leases
