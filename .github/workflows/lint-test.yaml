@@ -83,4 +83,12 @@ jobs:
 
       - name: Run chart-testing (install)
         if: steps.list-changed.outputs.changed == 'true'
-        run: ct install --config .ct/ct.yaml
+        ## keda-crds is excluded from install (but not lint) here only: bootstrap.sh
+        ## pre-applies its rendered CRDs via kubectl so the keda chart has them
+        ## available to install-test (ct processes charts in a non-deterministic
+        ## order, so keda-crds's own ct-install can't be relied on to run first).
+        ## ct's helm install would then fail trying to adopt those already-existing,
+        ## Helm-unowned CRDs — see the removed --take-ownership attempt in git history,
+        ## which fixed this but broke every chart's `helm uninstall` step instead,
+        ## since ct applies helm-extra-args uniformly to install/upgrade/uninstall.
+        run: ct install --config .ct/ct.yaml --excluded-charts arieotech-lib,keda-crds

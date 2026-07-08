@@ -74,8 +74,9 @@ kubectl wait --for=condition=available --timeout=90s deployment/keycloak-postgre
 echo "==> Pre-applying KEDA CRDs (required by keda chart CI — operator crashes without them)"
 # Render via `helm template` (files under templates/crds/ use Go template syntax,
 # e.g. {{- with .Values.commonAnnotations }}, so kubectl can't apply them directly)
-# then apply via kubectl so there is no Helm release ownership conflict when ct
-# install subsequently tests the keda-crds chart using helm upgrade --install.
+# then apply via kubectl. ct install itself excludes the keda-crds chart (see
+# .github/workflows/lint-test.yaml) since its own `helm install` would otherwise
+# conflict with these already-applied, Helm-unowned CRDs.
 helm template keda-crds-preapply charts/keda-crds | kubectl apply --server-side -f -
 
 echo "==> Bootstrap complete"
