@@ -33,6 +33,33 @@ spec:
       {{- with .Values.priorityClassName }}
       priorityClassName: {{ . }}
       {{- end }}
+      ## Waits for the operator's cert rotator to populate the certs Secret before the
+      ## main container starts. Without this, on first install the Secret doesn't exist
+      ## yet (optional: true lets the pod schedule anyway), the adapter binary exits
+      ## immediately on the missing cert files, and kubelet's exponential
+      ## CrashLoopBackOff (10s/20s/40s/80s...) can outlast the helm test hook's retry
+      ## budget — this polls every 2s instead, so the pod is Ready almost immediately
+      ## once the operator finishes its first reconcile.
+      initContainers:
+        - name: wait-for-certs
+          image: busybox:1.36.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              until [ -s /certs/tls.crt ] && [ -s /certs/tls.key ] && [ -s /certs/ca.crt ]; do
+                echo "Waiting for cert-rotation Secret to be populated..."
+                sleep 2
+              done
+          securityContext:
+            {{- include "arieotech.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.metricsApiServer.resources | nindent 12 }}
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+              readOnly: true
       containers:
         - name: keda-metrics-apiserver
           image: {{ include "keda.componentImage" .Values.metricsApiServer.image | quote }}
@@ -126,9 +153,9 @@ spec:
         - name: tmp
           emptyDir: {}
         ## Populated by the operator's cert rotator (--enable-cert-rotation) — see
-        ## deployment-operator.yaml. optional: true so this pod can still start (and
-        ## crash-loop-retry) before the operator has had a chance to create the
-        ## Secret on first install.
+        ## deployment-operator.yaml. optional: true so this pod can still be scheduled
+        ## before the operator has had a chance to create the Secret on first install;
+        ## the wait-for-certs initContainer blocks the main container until it's ready.
         - name: certs
           secret:
             secretName: {{ include "keda.fullname" . }}-certs

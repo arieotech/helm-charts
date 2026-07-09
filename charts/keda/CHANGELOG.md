@@ -297,3 +297,16 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   new "TLS Certificates" section; `NOTES.txt`'s production checklist still described
   the old manual cert-manager/external-secrets provisioning model instead of the
   operator's automatic cert rotation. Fixed all three for consistency.
+- **Metrics API Server's `helm test` failed intermittently on first install**
+  (`wget: TLS error from peer (alert code 40): handshake failure`, then
+  `FAIL: KEDA metrics API server timed out after ~110s`). Root cause: the
+  `<fullname>-certs` Secret is created by the operator's cert-rotation reconcile,
+  which only runs after the operator itself has started — on a fresh install the
+  Metrics API Server (and Admission Webhooks, when enabled) pod schedules and starts
+  before that Secret exists, so its `--tls-cert-file`/`--tls-private-key-file` paths
+  are missing and the container exits immediately. Kubernetes then retries it under
+  `CrashLoopBackOff`, whose exponential delay (10s/20s/40s/80s...) can outlast the
+  test hook's ~110s retry budget even though the pod stabilizes shortly after.
+  Added a `wait-for-certs` initContainer to both the Metrics API Server and Admission
+  Webhooks Deployments that polls every 2s for the cert files to appear, so the main
+  container never starts (and never crash-loops) until the Secret is actually ready.

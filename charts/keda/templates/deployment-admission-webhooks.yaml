@@ -34,6 +34,28 @@ spec:
       {{- with .Values.priorityClassName }}
       priorityClassName: {{ . }}
       {{- end }}
+      ## See deployment-metrics-apiserver.yaml's wait-for-certs initContainer — same
+      ## bootstrap race against the operator's cert rotator, same fix.
+      initContainers:
+        - name: wait-for-certs
+          image: busybox:1.36.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              until [ -s /certs/tls.crt ] && [ -s /certs/tls.key ] && [ -s /certs/ca.crt ]; do
+                echo "Waiting for cert-rotation Secret to be populated..."
+                sleep 2
+              done
+          securityContext:
+            {{- include "arieotech.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.admissionWebhooks.resources | nindent 12 }}
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+              readOnly: true
       containers:
         - name: keda-admission-webhooks
           image: {{ include "keda.componentImage" .Values.admissionWebhooks.image | quote }}
@@ -113,8 +135,9 @@ spec:
           emptyDir: {}
         ## Same shared cert bundle the operator's cert rotator manages for the whole
         ## release (see deployment-operator.yaml's --enable-cert-rotation) — not a
-        ## separately-provisioned Secret. optional: true so this pod can still start
-        ## (and crash-loop-retry) before the operator has had a chance to create it.
+        ## separately-provisioned Secret. optional: true so this pod can still be
+        ## scheduled before the operator has created it; the wait-for-certs
+        ## initContainer blocks the main container until it's ready.
         - name: certs
           secret:
             secretName: {{ include "keda.fullname" . }}-certs
