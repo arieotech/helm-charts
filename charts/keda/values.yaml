@@ -55,16 +55,6 @@ metricsApiServer:
   extraEnv: []
   ## Log level
   logLevel: "0"
-  ## APIService registration (external.metrics.k8s.io/v1beta1)
-  apiService:
-    ## Bootstrap-time fallback only — the operator always runs with cert rotation
-    ## enabled (see deployment-operator.yaml's --enable-cert-rotation) and auto-patches
-    ## a real caBundle onto this APIService shortly after it starts. This value only
-    ## matters for the brief window before that happens. There is no caBundle override
-    ## value here: the rotator would overwrite one on its next reconcile anyway.
-    ## Must stay true (values.schema.json enforces this) — false with no caBundle
-    ## anywhere else would render an invalid APIService that fails at install time.
-    insecureSkipTLSVerify: true
 
 ## -- KEDA Admission Webhooks component
 admissionWebhooks:

@@ -116,18 +116,7 @@
         },
         "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
         "extraEnv": { "type": "array" },
-        "logLevel": { "type": "string" },
-        "apiService": {
-          "type": "object",
-          "properties": {
-            "insecureSkipTLSVerify": {
-              "type": "boolean",
-              "const": true,
-              "description": "Must be true — this chart exposes no caBundle alternative, and Kubernetes requires an APIService to set exactly one of caBundle/insecureSkipTLSVerify. false would render an invalid APIService with neither set, since it never gets a caBundle from anywhere but the operator's cert rotator."
-            }
-          },
-          "additionalProperties": false
-        }
+        "logLevel": { "type": "string" }
       }
     },
     "admissionWebhooks": {

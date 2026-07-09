@@ -349,3 +349,18 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   `v1beta1.external.metrics.k8s.io` APIService has a fixed name, so only one
   release of this chart can exist per cluster — a second release anywhere would
   collide on that object. Documented it.
+- **The `insecureSkipTLSVerify: true` "bootstrap fallback" from two entries above
+  broke every fresh install.** Confirmed via a live `ct install` failure, not
+  theory: the operator's cert rotator's first reconcile (a few seconds after
+  startup) tries to patch a `caBundle` onto the APIService the chart already
+  created with `insecureSkipTLSVerify: true`, and the API server's own validation
+  rejects it outright — `spec.insecureSkipTLSVerify: Invalid value: true: may not
+  be true if caBundle is present`. The `{{- if not .Release.IsUpgrade }}` guard
+  added earlier was based on the wrong theory (that this only mattered on
+  `helm upgrade`); the actual failure is on first install. Kubernetes does not
+  require either field to be set — only that they're not set together — so the
+  fix is to never render `insecureSkipTLSVerify` at all and let the rotator own
+  the field from its very first reconcile. Removed
+  `metricsApiServer.apiService.insecureSkipTLSVerify` from `values.yaml` and
+  `values.schema.json` entirely, since setting it to `true` is now a confirmed
+  install-breaking footgun, not a legitimate configuration choice.

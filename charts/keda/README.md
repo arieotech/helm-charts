@@ -79,7 +79,6 @@ intended scope, not as a tenant-isolation security control.
 | `metricsApiServer.resources` | object | `100m/128Mi` req, `256Mi` limit | Metrics API Server container resources |
 | `metricsApiServer.port` | int | `6443` | HTTPS port for the aggregated API |
 | `metricsApiServer.logLevel` | string | `"0"` | glog verbosity level |
-| `metricsApiServer.apiService.insecureSkipTLSVerify` | bool | `true` | Bootstrap-time fallback only — the operator's cert rotator patches a real `caBundle` in shortly after it starts |
 | `admissionWebhooks.enabled` | bool | `false` | Deploy admission webhooks — TLS is provisioned automatically by the operator's cert rotator, see [TLS Certificates](#tls-certificates); defaults to `false` pending live CI confirmation of that mechanism |
 | `admissionWebhooks.replicaCount` | int | `2` | Admission webhook replicas |
 | `admissionWebhooks.resources` | object | `50m/64Mi` req, `128Mi` limit | Admission webhook container resources |
