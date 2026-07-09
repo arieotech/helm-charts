@@ -242,3 +242,37 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   a portable, reliable selector was available (the same one the Metrics API Server's
   own egress rule already uses in the reverse direction), so there was no need to
   leave this one open to any source in-namespace.
+- **Operator and Metrics API Server crash-looped on every real cluster** trying to
+  read a TLS cert for their mutual TLS gRPC channel (port 9666) that nothing ever
+  provisioned (`open /certs/ca.crt: no such file or directory` on the operator;
+  `open apiserver.local.config/certificates/ca.crt: no such file or directory` on the
+  adapter). Verified against `pkg/certificates/certificate_manager.go`
+  (`kedacore/keda @ v2.16.0`): the operator has a built-in self-signed CA/cert
+  rotation mechanism (`open-policy-agent/cert-controller`, gated behind
+  `--enable-cert-rotation`) that generates a cert bundle, stores it in a
+  `<fullname>-certs` Secret, and auto-patches the resulting `caBundle` onto both the
+  `ValidatingWebhookConfiguration` and the `APIService`. This was never enabled.
+  - Enabled `--enable-cert-rotation=true` on the operator (not user-toggleable —
+    required for basic functionality, not an optional feature), passing
+    `--operator-service-name`/`--metrics-server-service-name`/`--webhooks-service-name`/
+    `--validating-webhook-name` explicitly so the generated cert's SANs and the
+    resources the rotator patches match this chart's actual (release-scoped)
+    resource names, not the binary's hardcoded defaults.
+  - Added a writable `emptyDir` at `/certs` to the operator (the rotator writes its
+    local copy there in addition to the Secret).
+  - Added `--cert-dir`/`--tls-cert-file`/`--tls-private-key-file`/`--client-ca-file`
+    to the Metrics API Server (cross-checked against KEDA's own upstream
+    `config/metrics-server/deployment.yaml`, which passes this same flag set) and
+    mounted the `<fullname>-certs` Secret read-only at `/certs`.
+  - Switched Admission Webhooks from the separately-provisioned
+    `<fullname>-webhooks-tls` Secret to the same shared `<fullname>-certs` Secret,
+    since the rotator manages TLS for all three components from one bundle. Removed
+    `admissionWebhooks.caBundle`/`.certManagerCertificate` and
+    `metricsApiServer.apiService.caBundle` — the rotator overwrites any manually-set
+    `caBundle` on its next reconcile regardless, so they were dead the moment
+    cert-rotation was enabled. Replaced the README's "Webhook TLS with cert-manager"
+    section with "TLS Certificates", describing the new automatic mechanism.
+  - `admissionWebhooks.enabled` stays `false` by default for now (not reverted to
+    `true`) pending a green CI run that actually confirms this mechanism works
+    end-to-end in `ct`'s kind cluster — this fix is verified against KEDA's source,
+    not yet against a live cluster.

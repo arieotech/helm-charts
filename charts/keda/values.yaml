@@ -58,22 +58,19 @@ metricsApiServer:
   logLevel: "0"
   ## APIService registration (external.metrics.k8s.io/v1beta1)
   apiService:
-    ## The metrics adapter self-signs its serving cert at startup by default, so there
-    ## is no stable CA to verify against — insecureSkipTLSVerify is required unless
-    ## caBundle is set below. Provision a real serving cert (e.g. cert-manager) and set
-    ## caBundle to close this gap in production.
+    ## Bootstrap-time fallback only — the operator always runs with cert rotation
+    ## enabled (see deployment-operator.yaml's --enable-cert-rotation) and auto-patches
+    ## a real caBundle onto this APIService shortly after it starts. This value only
+    ## matters for the brief window before that happens. There is no caBundle override
+    ## value here: the rotator would overwrite one on its next reconcile anyway.
     insecureSkipTLSVerify: true
-    ## Base64-encoded PEM CA bundle. When set, takes precedence over insecureSkipTLSVerify.
-    caBundle: ""
 
 ## -- KEDA Admission Webhooks component
 admissionWebhooks:
-  ## Defaults to disabled: this chart doesn't provision the webhook server's TLS cert
-  ## for you (see the "Webhook TLS with cert-manager" README section), so enabling
-  ## this without also setting up a Certificate + admissionWebhooks.caBundle or
-  ## .certManagerCertificate produces a CrashLoopBackOff Deployment and a
-  ## ValidatingWebhookConfiguration that fails open (harmless, since failurePolicy is
-  ## Ignore, but provides no actual validation). Enable once TLS is provisioned.
+  ## Defaults to disabled pending live CI confirmation of the operator's cert-rotation
+  ## mechanism (deployment-operator.yaml's --enable-cert-rotation), which provisions
+  ## this component's TLS cert automatically — no cert-manager or manual caBundle
+  ## needed. Once confirmed working end-to-end, this can default to true.
   enabled: false
   image:
     registry: ghcr.io
@@ -92,15 +89,6 @@ admissionWebhooks:
   port: 9443
   ## Extra environment variables
   extraEnv: []
-  ## Base64-encoded PEM CA bundle for the ValidatingWebhookConfiguration's clientConfig.
-  ## Without this (or certManagerCertificate below), the API server has no way to trust
-  ## the self-signed cert this component serves — webhook calls will fail, and because
-  ## failurePolicy is Ignore, that means validation is silently skipped, not a hard error.
-  caBundle: ""
-  ## Alternative to caBundle: set to "<namespace>/<certificate-name>" to have
-  ## cert-manager's CA injector auto-populate the webhook config's caBundle from that
-  ## Certificate — see the "Webhook TLS with cert-manager" section in the README.
-  certManagerCertificate: ""
 
 ## -- Shared values (apply globally when component-level override is absent)
 nameOverride: ""

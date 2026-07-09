@@ -111,10 +111,13 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
-        ## Webhook TLS certs — populate via cert-manager or external-secrets
+        ## Same shared cert bundle the operator's cert rotator manages for the whole
+        ## release (see deployment-operator.yaml's --enable-cert-rotation) — not a
+        ## separately-provisioned Secret. optional: true so this pod can still start
+        ## (and crash-loop-retry) before the operator has had a chance to create it.
         - name: certs
           secret:
-            secretName: {{ include "keda.fullname" . }}-webhooks-tls
+            secretName: {{ include "keda.fullname" . }}-certs
             optional: true
         {{- include "arieotech.serviceAccountTokenVolume" . | nindent 8 }}
         {{- with .Values.extraVolumes }}

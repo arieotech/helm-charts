@@ -127,10 +127,12 @@ spec:
   ## Must already be base64-encoded PEM data, matching the raw Kubernetes APIService field.
   caBundle: {{ .Values.metricsApiServer.apiService.caBundle | quote }}
   {{- else }}
-  ## The metrics adapter self-signs its serving cert at startup (no --tls-cert-file
-  ## configured), so there is no stable CA to verify against by default. Set
-  ## metricsApiServer.apiService.caBundle once you provision a real serving cert
-  ## (e.g. via cert-manager) to close this gap.
+  ## Bootstrap-time fallback only. The operator's cert rotator
+  ## (deployment-operator.yaml's --enable-cert-rotation) auto-patches a real caBundle
+  ## onto this APIService shortly after it starts (rotator.APIService hook in
+  ## pkg/certificates), overwriting this value — but Kubernetes requires the field
+  ## to be one of caBundle/insecureSkipTLSVerify at creation time, before the
+  ## operator has had a chance to run.
   insecureSkipTLSVerify: {{ .Values.metricsApiServer.apiService.insecureSkipTLSVerify }}
   {{- end }}
   groupPriorityMinimum: 100

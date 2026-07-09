@@ -72,14 +72,11 @@ intended scope, not as a tenant-isolation security control.
 | `metricsApiServer.resources` | object | `100m/128Mi` req, `256Mi` limit | Metrics API Server container resources |
 | `metricsApiServer.port` | int | `6443` | HTTPS port for the aggregated API |
 | `metricsApiServer.logLevel` | string | `"0"` | glog verbosity level |
-| `metricsApiServer.apiService.insecureSkipTLSVerify` | bool | `true` | Skip TLS verification for the aggregated API — required unless `caBundle` is set, since the adapter self-signs its cert |
-| `metricsApiServer.apiService.caBundle` | string | `""` | Base64-encoded PEM CA bundle; takes precedence over `insecureSkipTLSVerify` when set |
-| `admissionWebhooks.enabled` | bool | `false` | Deploy admission webhooks — requires TLS provisioned first, see [Webhook TLS with cert-manager](#webhook-tls-with-cert-manager) |
+| `metricsApiServer.apiService.insecureSkipTLSVerify` | bool | `true` | Bootstrap-time fallback only — the operator's cert rotator patches a real `caBundle` in shortly after it starts |
+| `admissionWebhooks.enabled` | bool | `false` | Deploy admission webhooks — TLS is provisioned automatically by the operator's cert rotator, see [TLS Certificates](#tls-certificates); defaults to `false` pending live CI confirmation of that mechanism |
 | `admissionWebhooks.replicaCount` | int | `2` | Admission webhook replicas |
 | `admissionWebhooks.resources` | object | `50m/64Mi` req, `128Mi` limit | Admission webhook container resources |
 | `admissionWebhooks.port` | int | `9443` | Webhook HTTPS port |
-| `admissionWebhooks.caBundle` | string | `""` | Base64-encoded PEM CA bundle for the ValidatingWebhookConfiguration's `clientConfig` |
-| `admissionWebhooks.certManagerCertificate` | string | `""` | `"<namespace>/<certificate-name>"` — has cert-manager's CA injector populate `caBundle` automatically instead |
 | `serviceAccount.create` | bool | `true` | Create a ServiceAccount |
 | `podSecurityContext` / `securityContext` | object | PSA restricted | Pod and container security contexts |
 | `terminationGracePeriodSeconds` | int | `30` | Grace period for in-flight ScaledObject reconciliations on shutdown |
@@ -127,44 +124,24 @@ secrets:
 Reference the generated Secret name (`keda-redis-trigger-auth` for a release named
 `keda`) from your own `TriggerAuthentication` resources.
 
-## Webhook TLS with cert-manager
+## TLS Certificates
 
-The admission webhook server expects a TLS Secret named `<fullname>-webhooks-tls`
-mounted at `/certs` (see `templates/deployment-admission-webhooks.yaml`), where
-`<fullname>` follows the standard Helm fullname convention — a release named `keda`
-produces `keda-webhooks-tls`. It is mounted `optional: true` so the chart installs
-cleanly before the cert exists, but the webhook container will not start correctly
-without it. Provision it with a cert-manager `Certificate` (example assumes release
-name `keda` in namespace `keda`):
+Unlike many operator charts, you don't need cert-manager or any manual TLS
+provisioning here. The operator runs with cert rotation enabled by default
+(`--enable-cert-rotation`, via [`open-policy-agent/cert-controller`](https://github.com/open-policy-agent/cert-controller)):
+it generates a CA and cert bundle, stores it in a `<fullname>-certs` Secret in the
+release namespace, and automatically patches the resulting `caBundle` onto both the
+`ValidatingWebhookConfiguration` and the `APIService`. The Metrics API Server and (if
+enabled) Admission Webhooks mount that same Secret read-only at `/certs`.
 
-```yaml
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: keda-webhooks-tls
-  namespace: keda
-spec:
-  secretName: keda-webhooks-tls
-  dnsNames:
-    - keda-admission-webhooks.keda.svc
-    - keda-admission-webhooks.keda.svc.cluster.local
-  issuerRef:
-    name: <your-cluster-issuer>
-    kind: ClusterIssuer
-```
+Both `<fullname>-certs` and its consumers are `optional: true`/self-healing: on first
+install the operator needs a moment to create the Secret, so dependent pods may
+crash-loop briefly until it appears — kubelet retries automatically, no action needed.
 
-Adjust `secretName` and `dnsNames` to match your actual release name and Service DNS.
-Without cert-manager, populate the same Secret via External Secrets Operator or a
-manually managed TLS Secret.
-
-The API server also needs to trust that cert to call the webhook at all — set
-`admissionWebhooks.certManagerCertificate: "keda/keda-webhooks-tls"` (namespace/name of
-the `Certificate` above) to have cert-manager's CA injector populate the
-`ValidatingWebhookConfiguration`'s `caBundle` automatically, or set
-`admissionWebhooks.caBundle` directly if you're not using cert-manager. Leaving both
-unset means webhook calls fail validation-side; because `failurePolicy` is `Ignore`,
-that fails **open** (ScaledObjects still get created, just without KEDA's own
-validation applied) rather than blocking cluster operations.
+If you run your own PKI and want to bypass this entirely, you'd need to remove
+`--enable-cert-rotation` from `templates/deployment-operator.yaml` and wire your own
+cert-manager `Certificate` + `caBundle` back in — there's currently no values-driven
+toggle for this, since the chart doesn't yet have a values profile that exercises it.
 
 ## NetworkPolicy
 
@@ -228,10 +205,13 @@ never deletes CRDs (and the ScaledObjects/ScaledJobs they back) by accident.
 chart was not installed, or was installed after `keda`. Install/sync `keda-crds` first
 and confirm with `kubectl get crd | grep keda.sh`.
 
-**Admission webhook pods stuck `CrashLoopBackOff` on startup:** The
-`<fullname>-webhooks-tls` Secret does not exist yet. See
-[Webhook TLS with cert-manager](#webhook-tls-with-cert-manager). You can temporarily set
-`admissionWebhooks.enabled: false` to unblock ScaledObject changes while TLS is fixed.
+**Admission webhook (or operator, or Metrics API Server) pods stuck `CrashLoopBackOff`
+on startup with a cert-related error:** The `<fullname>-certs` Secret the operator's
+cert rotator manages doesn't exist yet — normal briefly on first install (see
+[TLS Certificates](#tls-certificates)); kubelet retries automatically. If it persists,
+check the operator's own logs first — it owns creating this Secret. You can
+temporarily set `admissionWebhooks.enabled: false` to unblock ScaledObject changes
+while investigating.
 
 **HPA not scaling despite ScaledObject present:** Confirm the metrics API server is
 registered: `kubectl get apiservice v1beta1.external.metrics.k8s.io`. If it shows
@@ -256,7 +236,7 @@ via `networkPolicy.extraEgress`.
 - [ ] `pdb.enabled=true` (default)
 - [ ] `metrics.serviceMonitor.enabled=true` if using Prometheus Operator
 - [ ] `metrics.prometheusRule.enabled=true` for alert rules
-- [ ] Admission webhook TLS cert provisioned, then `admissionWebhooks.enabled=true` (default `false`; a plain install without a cert first will crash-loop the webhook pods)
+- [ ] `admissionWebhooks.enabled=true` (default `false`) once you've confirmed the operator's cert rotator is provisioning `<fullname>-certs` correctly — see [TLS Certificates](#tls-certificates)
 - [ ] `soc2.auditLogging.enabled=true` (default) for audit log compliance
 - [ ] Image digest pinning: set `operator.image.digest` / `metricsApiServer.image.digest` / `admissionWebhooks.image.digest`
 - [ ] `replicaCount >= 2` for all components (default)

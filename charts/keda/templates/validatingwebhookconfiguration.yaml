@@ -3,6 +3,13 @@
 ## admission-webhooks Deployment/Service run but never receive any admission
 ## requests — see service-admission-webhooks.yaml. Matches upstream KEDA's
 ## config/webhooks/validation_webhooks.yaml (github.com/kedacore/keda @ v2.16.0).
+## caBundle is intentionally never set here: the operator's cert rotator
+## (deployment-operator.yaml's --enable-cert-rotation, which is passed this exact
+## resource's name via --validating-webhook-name) auto-patches it in shortly after
+## the operator starts. Omitting it is valid for a ValidatingWebhookConfiguration
+## (unlike an APIService); until the rotator patches it, calls fail closed against
+## the API server's own trust roots, which fails open overall since failurePolicy
+## is Ignore below.
 {{- $webhookRules := list
   (dict "name" "vscaledobject.kb.io" "path" "/validate-keda-sh-v1alpha1-scaledobject" "group" "keda.sh" "resource" "scaledobjects")
   (dict "name" "vscaledjob.kb.io" "path" "/validate-keda-sh-v1alpha1-scaledjob" "group" "keda.sh" "resource" "scaledjobs")
@@ -18,10 +25,6 @@ metadata:
   labels:
     {{- include "keda.labels" . | nindent 4 }}
     app.kubernetes.io/component: admission-webhooks
-  {{- if .Values.admissionWebhooks.certManagerCertificate }}
-  annotations:
-    cert-manager.io/inject-ca-from: {{ .Values.admissionWebhooks.certManagerCertificate | quote }}
-  {{- end }}
 webhooks:
   {{- range $webhookRules }}
   - name: {{ .name }}
@@ -32,12 +35,6 @@ webhooks:
         namespace: {{ $.Release.Namespace }}
         path: {{ .path }}
         port: {{ $.Values.admissionWebhooks.port }}
-      {{- if and $.Values.admissionWebhooks.caBundle (not $.Values.admissionWebhooks.certManagerCertificate) }}
-      ## Only rendered when certManagerCertificate is unset — when both are set,
-      ## cert-manager's CA injector owns and overwrites this field on reconcile,
-      ## so rendering our own value here would just fight it.
-      caBundle: {{ $.Values.admissionWebhooks.caBundle | quote }}
-      {{- end }}
     ## Fail open: if the webhook is unreachable, admission proceeds without KEDA's
     ## validation rather than blocking cluster operations. Matches upstream.
     failurePolicy: Ignore

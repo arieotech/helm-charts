@@ -48,6 +48,24 @@ spec:
             - --zap-log-level={{ .Values.operator.logLevel }}
             - --zap-encoder={{ .Values.operator.logEncoder }}
             - --zap-time-encoding={{ .Values.operator.logTimeFormat }}
+            ## Required — without this, the operator and the Metrics API Server both
+            ## crash on startup trying to read a client/server TLS cert for their
+            ## mutual TLS gRPC channel (port 9666) that nothing ever provisions
+            ## (pkg/certificates/certificate_manager.go in kedacore/keda). This makes
+            ## the operator self-generate a CA + cert bundle via
+            ## open-policy-agent/cert-controller, store it in
+            ## <fullname>-certs (mounted by the Metrics API Server and, if enabled,
+            ## Admission Webhooks), and auto-patch the caBundle onto both the
+            ## ValidatingWebhookConfiguration and the APIService. Service/webhook names
+            ## below are passed explicitly since the binary's own defaults
+            ## (keda-operator, keda-metrics-apiserver, etc.) only happen to match this
+            ## chart's actual resource names when the release is named "keda".
+            - --enable-cert-rotation=true
+            - --cert-secret-name={{ include "keda.fullname" . }}-certs
+            - --operator-service-name={{ include "keda.fullname" . }}-operator
+            - --metrics-server-service-name={{ include "keda.fullname" . }}-metrics-apiserver
+            - --webhooks-service-name={{ include "keda.fullname" . }}-admission-webhooks
+            - --validating-webhook-name={{ include "keda.fullname" . }}-admission
             {{- if not .Values.metrics.enabled }}
             ## Real flag for disabling Prometheus metrics (default true). The chart
             ## previously (wrongly) pointed --metrics-bind-address at :9666 — which
@@ -128,6 +146,10 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            ## Writable: the cert rotator (see --enable-cert-rotation above) writes
+            ## its generated cert files here, in addition to the Secret it manages.
+            - name: certs
+              mountPath: /certs
             {{- include "arieotech.serviceAccountTokenVolumeMount" . | nindent 12 }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
@@ -137,6 +159,8 @@ spec:
         {{- end }}
       volumes:
         - name: tmp
+          emptyDir: {}
+        - name: certs
           emptyDir: {}
         {{- include "arieotech.serviceAccountTokenVolume" . | nindent 8 }}
         {{- with .Values.extraVolumes }}

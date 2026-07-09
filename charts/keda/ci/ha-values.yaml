@@ -11,11 +11,9 @@ metricsApiServer:
   replicaCount: 2
 
 admissionWebhooks:
-  ## Left disabled here too: ct generates a random namespace per test run, so there's
-  ## no way to pre-provision a namespace-scoped Certificate/Secret for the webhook TLS
-  ## cert this profile would otherwise need. Testing the real webhook+TLS path needs
-  ## either a chart-generated self-signed cert (see the CHANGELOG "known follow-up")
-  ## or a values profile with a real caBundle, neither of which exist yet.
+  ## Left disabled here too, matching the chart default, pending live CI confirmation
+  ## that the operator's cert-rotation mechanism (--enable-cert-rotation) actually
+  ## provisions working TLS end-to-end — see the README's "TLS Certificates" section.
   enabled: false
   replicaCount: 2
 

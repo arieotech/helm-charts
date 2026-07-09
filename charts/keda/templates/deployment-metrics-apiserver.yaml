@@ -43,6 +43,18 @@ spec:
             - --secure-port={{ .Values.metricsApiServer.port }}
             - --logtostderr=true
             - --v={{ .Values.metricsApiServer.logLevel }}
+            ## Required — without --cert-dir, this binary's TLS cert directory falls
+            ## back to a k8s.io/apiserver default of apiserver.local.config/certificates,
+            ## which nothing populates, and it crashes trying to read ca.crt from
+            ## there for its gRPC client connection to the operator (verified via the
+            ## exact crash and cross-checked against KEDA's own upstream
+            ## config/metrics-server/deployment.yaml, which passes this same set of
+            ## flags). Reads the cert bundle the operator's --enable-cert-rotation
+            ## generates (see deployment-operator.yaml).
+            - --cert-dir=/certs
+            - --tls-cert-file=/certs/tls.crt
+            - --tls-private-key-file=/certs/tls.key
+            - --client-ca-file=/certs/ca.crt
           env:
             - name: KEDA_HTTP_DEFAULT_TIMEOUT
               value: "3000"
@@ -103,6 +115,9 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: certs
+              mountPath: /certs
+              readOnly: true
             {{- include "arieotech.serviceAccountTokenVolumeMount" . | nindent 12 }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
@@ -110,6 +125,14 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
+        ## Populated by the operator's cert rotator (--enable-cert-rotation) — see
+        ## deployment-operator.yaml. optional: true so this pod can still start (and
+        ## crash-loop-retry) before the operator has had a chance to create the
+        ## Secret on first install.
+        - name: certs
+          secret:
+            secretName: {{ include "keda.fullname" . }}-certs
+            optional: true
         {{- include "arieotech.serviceAccountTokenVolume" . | nindent 8 }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
