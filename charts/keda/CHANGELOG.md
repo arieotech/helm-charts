@@ -335,3 +335,9 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   failing fast. Added an `if`/`then` to `values.schema.json` requiring a non-empty
   `region` whenever `dataResidency.enabled` is `true`, and guarded
   `keda.podAnnotations` in `_helpers.tpl` to only emit the annotation when both are set.
+- `metricsApiServer.apiService.insecureSkipTLSVerify` was schema-validated as any
+  boolean, but this chart exposes no `caBundle` alternative — setting it to `false`
+  would render an APIService with neither field set (Kubernetes requires exactly
+  one), failing at install time and permanently blocking the operator's cert
+  rotator from ever getting a chance to patch a real `caBundle` in. Constrained the
+  schema to `const: true`.

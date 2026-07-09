@@ -62,6 +62,8 @@ metricsApiServer:
     ## a real caBundle onto this APIService shortly after it starts. This value only
     ## matters for the brief window before that happens. There is no caBundle override
     ## value here: the rotator would overwrite one on its next reconcile anyway.
+    ## Must stay true (values.schema.json enforces this) — false with no caBundle
+    ## anywhere else would render an invalid APIService that fails at install time.
     insecureSkipTLSVerify: true
 
 ## -- KEDA Admission Webhooks component
