@@ -364,3 +364,11 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   `metricsApiServer.apiService.insecureSkipTLSVerify` from `values.yaml` and
   `values.schema.json` entirely, since setting it to `true` is now a confirmed
   install-breaking footgun, not a legitimate configuration choice.
+- The `dpdp.dataResidency` `if`/`then` schema's `if` clause checked
+  `enabled: { const: true }` under `properties` without `required: ["enabled"]` —
+  in JSON Schema, `properties` alone doesn't assert presence, so an object
+  missing `enabled` entirely (not just `enabled: false`) would vacuously satisfy
+  the `if` and incorrectly require `region`. Added `required: ["enabled"]` to the
+  `if` clause. Verified with `--set-json 'dpdp={"dataResidency":{"region":""}}'`
+  (an `enabled`-less object) passing before and after, and the `enabled: true`
+  cases still enforcing `region` correctly.

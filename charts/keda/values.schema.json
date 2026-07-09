@@ -326,7 +326,8 @@
             "region": { "type": "string" }
           },
           "if": {
-            "properties": { "enabled": { "const": true } }
+            "properties": { "enabled": { "const": true } },
+            "required": ["enabled"]
           },
           "then": {
             "properties": { "region": { "type": "string", "minLength": 1 } },
