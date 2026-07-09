@@ -4,7 +4,6 @@
 
 global:
   imagePullSecrets: []
-  storageClass: ""
 
 ## -- KEDA Operator component
 operator:

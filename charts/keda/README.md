@@ -58,7 +58,6 @@ intended scope, not as a tenant-isolation security control.
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `global.imagePullSecrets` | list | `[]` | Image pull secrets applied to all components |
-| `global.storageClass` | string | `""` | Default StorageClass override |
 | `operator.image.tag` | string | `"2.16.0"` | Operator image tag. `latest` is rejected. |
 | `operator.image.digest` | string | `""` | Pin operator image by digest instead of tag |
 | `operator.replicaCount` | int | `2` | Number of operator replicas |

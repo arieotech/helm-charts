@@ -39,7 +39,7 @@ spec:
             i=0
             until wget -q --spider --timeout=10 "$@" "$url"; do
               i=$((i+1))
-              if [ $i -ge 6 ]; then echo "FAIL: $name timed out after ~60s"; exit 1; fi
+              if [ $i -ge 6 ]; then echo "FAIL: $name timed out after ~110s"; exit 1; fi
               echo "$name: attempt $i failed, retrying in 10s..."
               sleep 10
             done

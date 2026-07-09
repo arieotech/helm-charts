@@ -276,3 +276,18 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
     `true`) pending a green CI run that actually confirms this mechanism works
     end-to-end in `ct`'s kind cluster — this fix is verified against KEDA's source,
     not yet against a live cluster.
+- If `serviceAccount.name` was explicitly set, all three `keda.*ServiceAccountName`
+  helpers correctly resolved to that one shared name, but `templates/serviceaccount.yaml`
+  still rendered three separate `ServiceAccount` manifests with the identical name —
+  three objects fighting over ownership of one name, with unpredictable labels.
+  Now renders exactly one `ServiceAccount` when a custom name is set.
+- `bootstrap.sh` applied the `keda-crds` CRDs but didn't wait for them to reach
+  `Established`, risking a race with the immediately-following `ct install` of the
+  `keda` chart. Added `kubectl wait --for=condition=Established` for all 6 CRDs.
+- Removed `global.storageClass` — this chart has no PVCs/stateful workloads, so the
+  value was declared in values/schema/README but referenced by no template.
+- Corrected `templates/tests/test-connection.yaml`'s timeout message: 6 attempts ×
+  10s `wget --timeout` + 5 × 10s sleeps between them is ~110s worst case, not ~60s.
+- The Admission Webhooks `ClusterRole` rendered unconditionally even with
+  `admissionWebhooks.enabled=false` (its `ClusterRoleBinding` was already correctly
+  gated). Gated the `ClusterRole` too, matching the rest of that component's resources.

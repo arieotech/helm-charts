@@ -78,5 +78,13 @@ echo "==> Pre-applying KEDA CRDs (required by keda chart CI — operator crashes
 # .github/workflows/lint-test.yaml) since its own `helm install` would otherwise
 # conflict with these already-applied, Helm-unowned CRDs.
 helm template keda-crds-preapply charts/keda-crds | kubectl apply --server-side -f -
+echo "==> Waiting for KEDA CRDs to reach Established..."
+kubectl wait --for=condition=Established --timeout=60s \
+  crd/scaledobjects.keda.sh \
+  crd/scaledjobs.keda.sh \
+  crd/triggerauthentications.keda.sh \
+  crd/clustertriggerauthentications.keda.sh \
+  crd/cloudeventsources.eventing.keda.sh \
+  crd/clustercloudeventsources.eventing.keda.sh
 
 echo "==> Bootstrap complete"

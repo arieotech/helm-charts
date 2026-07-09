@@ -10,9 +10,9 @@
         "imagePullSecrets": {
           "type": "array",
           "items": { "type": "object" }
-        },
-        "storageClass": { "type": "string" }
-      }
+        }
+      },
+      "additionalProperties": false
     },
     "operator": {
       "type": "object",
