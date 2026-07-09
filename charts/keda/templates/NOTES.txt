@@ -49,7 +49,9 @@ Production checklist:
   [ ] networkPolicy.enabled=true (default)
   [ ] pdb.enabled=true (default)
   [ ] metrics.serviceMonitor.enabled=true (if using Prometheus Operator)
-  [ ] admissionWebhooks TLS cert provisioned (cert-manager Certificate or external-secrets)
+  [ ] admissionWebhooks.enabled=true (default false, pending live CI confirmation of the
+      operator's cert-rotation mechanism — TLS is provisioned automatically, no
+      cert-manager or manual Secret needed; see the README's "TLS Certificates" section)
   [ ] soc2.auditLogging.enabled=true (default)
 
 Documentation: https://github.com/arieotech/helm-charts/tree/main/charts/keda

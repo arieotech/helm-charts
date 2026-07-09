@@ -22,7 +22,9 @@ Fixes two critical upstream gaps:
 - Kubernetes 1.27+
 - Helm 3.12+
 - `keda-crds` chart installed first (see below)
-- cert-manager (recommended for admission webhook TLS)
+
+No cert-manager or other TLS provisioning is required — see
+[TLS Certificates](#tls-certificates) for how that's handled.
 
 ## Quick Start
 

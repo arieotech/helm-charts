@@ -291,3 +291,9 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
 - The Admission Webhooks `ClusterRole` rendered unconditionally even with
   `admissionWebhooks.enabled=false` (its `ClusterRoleBinding` was already correctly
   gated). Gated the `ClusterRole` too, matching the rest of that component's resources.
+- Cleanup misses from the cert-rotation rewrite: `clusterrolebinding.yaml` still had a
+  dead `caBundle` conditional branch referencing a value that no longer exists; the
+  README's Prerequisites section still recommended cert-manager, contradicting the
+  new "TLS Certificates" section; `NOTES.txt`'s production checklist still described
+  the old manual cert-manager/external-secrets provisioning model instead of the
+  operator's automatic cert rotation. Fixed all three for consistency.

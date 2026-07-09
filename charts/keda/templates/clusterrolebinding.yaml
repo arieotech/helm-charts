@@ -123,17 +123,13 @@ spec:
     port: {{ .Values.metricsApiServer.port }}
   group: external.metrics.k8s.io
   version: v1beta1
-  {{- if .Values.metricsApiServer.apiService.caBundle }}
-  ## Must already be base64-encoded PEM data, matching the raw Kubernetes APIService field.
-  caBundle: {{ .Values.metricsApiServer.apiService.caBundle | quote }}
-  {{- else }}
   ## Bootstrap-time fallback only. The operator's cert rotator
   ## (deployment-operator.yaml's --enable-cert-rotation) auto-patches a real caBundle
   ## onto this APIService shortly after it starts (rotator.APIService hook in
   ## pkg/certificates), overwriting this value — but Kubernetes requires the field
   ## to be one of caBundle/insecureSkipTLSVerify at creation time, before the
-  ## operator has had a chance to run.
+  ## operator has had a chance to run. There is no caBundle override value here: the
+  ## rotator would overwrite one on its next reconcile anyway (see values.yaml).
   insecureSkipTLSVerify: {{ .Values.metricsApiServer.apiService.insecureSkipTLSVerify }}
-  {{- end }}
   groupPriorityMinimum: 100
   versionPriority: 100
