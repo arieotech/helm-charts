@@ -372,3 +372,19 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   `if` clause. Verified with `--set-json 'dpdp={"dataResidency":{"region":""}}'`
   (an `enabled`-less object) passing before and after, and the `enabled: true`
   cases still enforcing `region` correctly.
+- `KedaScaledObjectError` and `KedaTriggerAuthenticationError` alerted on a raw
+  counter (`keda_scaledobject_errors_total > 0` / `keda_trigger_totals{type="error"}
+  > 0`) — both are monotonically increasing, so once a single error was ever
+  recorded, the alert would fire permanently, never resolving even if the errors
+  stopped. Switched both to `increase(...[5m]) > 0`, matching the pattern
+  `KedaMetricsApiServerHighErrorRate` already used.
+- `serviceAccount.create: false` with no `name` set silently fell back to the
+  namespace's `default` ServiceAccount, and every KEDA ClusterRoleBinding/
+  RoleBinding would then grant its permissions to that default SA — an easy to
+  miss security footgun. Added an `if`/`then` requiring a non-empty `name`
+  whenever `create` is `false`.
+- `secrets` keys are used verbatim as the Secret name's suffix
+  (`<fullname>-<key>`), but the schema didn't validate them — an uppercase or
+  underscore-containing key would pass `helm lint` and only fail at
+  `helm install` with an unhelpful Kubernetes API error. Added `propertyNames`
+  validation requiring a valid Kubernetes name segment.

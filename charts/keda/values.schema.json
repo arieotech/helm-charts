@@ -173,7 +173,16 @@
         "name": { "type": "string" },
         "annotations": { "type": "object" }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "if": {
+        "properties": { "create": { "const": false } },
+        "required": ["create"]
+      },
+      "then": {
+        "properties": { "name": { "type": "string", "minLength": 1 } },
+        "required": ["name"],
+        "description": "create: false with no name falls back to the namespace's default ServiceAccount, silently granting it every KEDA ClusterRoleBinding/RoleBinding — require an explicit name instead."
+      }
     },
     "podAnnotations": { "type": "object" },
     "podLabels": { "type": "object" },
@@ -342,6 +351,10 @@
     "sidecars": { "type": "array" },
     "secrets": {
       "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+        "description": "Used verbatim as the suffix of the rendered Secret's name (<fullname>-<key>) — must be a valid Kubernetes resource name segment (lowercase alphanumeric and hyphens, no leading/trailing hyphen)."
+      },
       "additionalProperties": {
         "type": "object",
         "properties": {

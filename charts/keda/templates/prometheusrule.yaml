@@ -30,10 +30,13 @@ spec:
               in namespace {{ "{{" }} $labels.namespace {{ "}}" }} has had zero available
               replicas for more than 5 minutes. Event-driven autoscaling is offline.
 
-        ## Alert when the operator cannot reconcile ScaledObjects
+        ## Alert when the operator cannot reconcile ScaledObjects. increase(), not a
+        ## raw counter > 0 — keda_scaledobject_errors_total is monotonically
+        ## increasing, so a bare `> 0` check would fire forever after the first error
+        ## ever recorded, not just recent ones.
         - alert: KedaScaledObjectError
           expr: |
-            keda_scaledobject_errors_total > 0
+            increase(keda_scaledobject_errors_total[5m]) > 0
           for: 5m
           labels:
             severity: warning
@@ -44,10 +47,11 @@ spec:
               {{ "{{" }} $labels.namespace {{ "}}" }} has accumulated {{ "{{" }} $value {{ "}}" }}
               reconciliation errors. Check KEDA operator logs.
 
-        ## Alert when triggers are reporting errors
+        ## Alert when triggers are reporting errors. Same increase() reasoning as
+        ## KedaScaledObjectError above — keda_trigger_totals is a counter.
         - alert: KedaTriggerAuthenticationError
           expr: |
-            keda_trigger_totals{type="error"} > 0
+            increase(keda_trigger_totals{type="error"}[5m]) > 0
           for: 5m
           labels:
             severity: warning
