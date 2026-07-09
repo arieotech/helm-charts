@@ -70,7 +70,7 @@ YAML null, which Kubernetes expects to be a map. Usage:
 {{- with (include "arieotech.istioExcludedPorts" . | trim) }}
 {{- $parts = append $parts . }}
 {{- end }}
-{{- if .Values.dpdp.dataResidency.enabled }}
+{{- if and .Values.dpdp.dataResidency.enabled .Values.dpdp.dataResidency.region }}
 {{- $parts = append $parts (printf "dpdp.arieotech.com/data-residency-region: %s" (.Values.dpdp.dataResidency.region | quote)) }}
 {{- end }}
 {{- with .Values.podAnnotations }}

@@ -128,8 +128,9 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   `templates/validatingwebhookconfiguration.yaml` matching upstream KEDA's
   `config/webhooks/validation_webhooks.yaml` (6 validating webhooks: ScaledObject,
   ScaledJob, TriggerAuthentication, ClusterTriggerAuthentication, CloudEventSource,
-  ClusterCloudEventSource), plus `admissionWebhooks.caBundle` /
-  `.certManagerCertificate` values so the API server can trust the webhook's TLS cert.
+  ClusterCloudEventSource). (This originally shipped alongside `admissionWebhooks.caBundle`
+  / `.certManagerCertificate` values for the API server to trust the webhook's TLS cert —
+  both were removed later in this same changelog once cert-rotation made them dead.)
 - **All three components shared one ServiceAccount bound to three different
   ClusterRoles**, giving every pod the union of all three components' RBAC — including
   the operator's namespace-scoped Secrets/Leases write access leaking into the
@@ -321,3 +322,16 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   `templates/tests/test-connection.yaml` from `busybox:1.36.1`/`wget` to
   `curlimages/curl:8.7.1`/`curl` (same image the keycloak chart's `test-smoke.yaml`
   already uses), which links a full TLS stack with no such gap.
+- **The APIService's `insecureSkipTLSVerify: true` could break `helm upgrade`.**
+  Kubernetes requires an APIService to set exactly one of `caBundle` /
+  `insecureSkipTLSVerify` — never both. The operator's cert rotator patches a real
+  `caBundle` onto this APIService shortly after first install, but the chart kept
+  unconditionally re-rendering `insecureSkipTLSVerify: true` on every `helm upgrade`
+  regardless, which would fight (or outright conflict with) whatever the rotator had
+  already patched in. Now only rendered when `.Release.IsUpgrade` is false — the
+  rotator owns this field from the second reconcile onward.
+- `dpdp.dataResidency.enabled: true` with an empty (default) `region` rendered a
+  meaningless `dpdp.arieotech.com/data-residency-region: ""` annotation instead of
+  failing fast. Added an `if`/`then` to `values.schema.json` requiring a non-empty
+  `region` whenever `dataResidency.enabled` is `true`, and guarded
+  `keda.podAnnotations` in `_helpers.tpl` to only emit the annotation when both are set.

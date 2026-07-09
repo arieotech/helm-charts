@@ -19,3 +19,9 @@
   resources they backed)
 - `helm.sh/chart` label now derived from `.Chart.Name`/`.Chart.Version` instead of
   a hardcoded `keda-crds-0.1.0` string that would go stale on every version bump
+
+### Fixed
+- `helm.sh/chart` label value wasn't sanitized against Kubernetes label-value rules —
+  a `+build` SemVer suffix in `.Chart.Version` would have produced an invalid label
+  (`+` isn't a legal label character) with no length cap. Matched
+  `arieotech.chart`'s existing `replace "+" "_" | trunc 63 | trimSuffix "-"` pattern.

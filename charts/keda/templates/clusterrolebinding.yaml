@@ -123,13 +123,20 @@ spec:
     port: {{ .Values.metricsApiServer.port }}
   group: external.metrics.k8s.io
   version: v1beta1
-  ## Bootstrap-time fallback only. The operator's cert rotator
-  ## (deployment-operator.yaml's --enable-cert-rotation) auto-patches a real caBundle
-  ## onto this APIService shortly after it starts (rotator.APIService hook in
-  ## pkg/certificates), overwriting this value — but Kubernetes requires the field
-  ## to be one of caBundle/insecureSkipTLSVerify at creation time, before the
-  ## operator has had a chance to run. There is no caBundle override value here: the
-  ## rotator would overwrite one on its next reconcile anyway (see values.yaml).
+  ## Bootstrap-time fallback only, rendered on install only — see below. The operator's
+  ## cert rotator (deployment-operator.yaml's --enable-cert-rotation) auto-patches a real
+  ## caBundle onto this APIService shortly after it starts (rotator.APIService hook in
+  ## pkg/certificates), but before that first reconcile completes, the APIService needs
+  ## some value here since Kubernetes requires exactly one of caBundle/insecureSkipTLSVerify.
+  ## There is no caBundle override value here: the rotator would overwrite one on its next
+  ## reconcile anyway (see values.yaml).
+  {{- if not .Release.IsUpgrade }}
   insecureSkipTLSVerify: {{ .Values.metricsApiServer.apiService.insecureSkipTLSVerify }}
+  {{- end }}
+  ## Rendered only on install (above), not on upgrade — Kubernetes rejects an APIService
+  ## that sets both caBundle and insecureSkipTLSVerify, so re-asserting
+  ## insecureSkipTLSVerify on every `helm upgrade` would either fight the rotator's
+  ## already-patched caBundle or fail outright once it's present. Once the rotator
+  ## patches caBundle in after first install, this field is the rotator's to own.
   groupPriorityMinimum: 100
   versionPriority: 100

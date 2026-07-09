@@ -55,4 +55,4 @@ Production checklist:
   [ ] soc2.auditLogging.enabled=true (default)
 
 Documentation: https://github.com/arieotech/helm-charts/tree/main/charts/keda
-KEDA docs:     https://keda.sh/docs/{{ .Chart.AppVersion }}/
+KEDA docs:     https://keda.sh/docs/{{ .Chart.AppVersion | regexReplaceAll "^([0-9]+\\.[0-9]+)\\..*$" "$1" }}/

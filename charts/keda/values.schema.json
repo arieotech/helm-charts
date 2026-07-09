@@ -331,6 +331,13 @@
           "properties": {
             "enabled": { "type": "boolean" },
             "region": { "type": "string" }
+          },
+          "if": {
+            "properties": { "enabled": { "const": true } }
+          },
+          "then": {
+            "properties": { "region": { "type": "string", "minLength": 1 } },
+            "required": ["region"]
           }
         }
       }
