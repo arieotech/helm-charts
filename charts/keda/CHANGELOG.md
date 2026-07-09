@@ -341,3 +341,11 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   one), failing at install time and permanently blocking the operator's cert
   rotator from ever getting a chance to patch a real `caBundle` in. Constrained the
   schema to `const: true`.
+- Moved the `APIService` out of `clusterrolebinding.yaml` into its own
+  `templates/apiservice.yaml` — it's a cluster-scoped aggregation resource, not an
+  RBAC binding, and was easy to miss while troubleshooting external-metrics
+  registration issues buried at the bottom of an RBAC file.
+- README's Prerequisites section didn't mention that the cluster-scoped
+  `v1beta1.external.metrics.k8s.io` APIService has a fixed name, so only one
+  release of this chart can exist per cluster — a second release anywhere would
+  collide on that object. Documented it.

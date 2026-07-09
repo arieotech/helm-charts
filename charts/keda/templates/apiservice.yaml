@@ -1,0 +1,34 @@
+## APIService registration for keda-metrics-apiserver (external.metrics.k8s.io/v1beta1)
+## Cluster-scoped with a fixed name — only one release of this chart can exist per
+## cluster (see README's Prerequisites section).
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.external.metrics.k8s.io
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-apiserver
+spec:
+  service:
+    name: {{ include "keda.fullname" . }}-metrics-apiserver
+    namespace: {{ .Release.Namespace }}
+    port: {{ .Values.metricsApiServer.port }}
+  group: external.metrics.k8s.io
+  version: v1beta1
+  ## Bootstrap-time fallback only, rendered on install only — see below. The operator's
+  ## cert rotator (deployment-operator.yaml's --enable-cert-rotation) auto-patches a real
+  ## caBundle onto this APIService shortly after it starts (rotator.APIService hook in
+  ## pkg/certificates), but before that first reconcile completes, the APIService needs
+  ## some value here since Kubernetes requires exactly one of caBundle/insecureSkipTLSVerify.
+  ## There is no caBundle override value here: the rotator would overwrite one on its next
+  ## reconcile anyway (see values.yaml).
+  {{- if not .Release.IsUpgrade }}
+  insecureSkipTLSVerify: {{ .Values.metricsApiServer.apiService.insecureSkipTLSVerify }}
+  {{- end }}
+  ## Rendered only on install (above), not on upgrade — Kubernetes rejects an APIService
+  ## that sets both caBundle and insecureSkipTLSVerify, so re-asserting
+  ## insecureSkipTLSVerify on every `helm upgrade` would either fight the rotator's
+  ## already-patched caBundle or fail outright once it's present. Once the rotator
+  ## patches caBundle in after first install, this field is the rotator's to own.
+  groupPriorityMinimum: 100
+  versionPriority: 100

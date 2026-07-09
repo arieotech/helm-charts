@@ -25,3 +25,8 @@
   a `+build` SemVer suffix in `.Chart.Version` would have produced an invalid label
   (`+` isn't a legal label character) with no length cap. Matched
   `arieotech.chart`'s existing `replace "+" "_" | trunc 63 | trimSuffix "-"` pattern.
+- README's install/upgrade examples used only the OCI registry
+  (`oci://ghcr.io/arieotech/charts/keda-crds`), inconsistent with the Helm-repo based
+  examples (`arieotech/keda-crds`) used everywhere else in this repo (the keycloak
+  chart's README, and this chart's own `keda` companion README). Switched to the
+  Helm-repo form as primary, with the OCI form kept as a documented alternative.

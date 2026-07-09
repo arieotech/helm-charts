@@ -19,17 +19,27 @@ This chart (Arieotech fix for upstream [issue #5575](https://github.com/kedacore
 Always install `keda-crds` before `keda`:
 
 ```bash
+helm repo add arieotech https://charts.arieotech.com
+helm repo update
+
 # 1. Install CRDs first
-helm install keda-crds oci://ghcr.io/arieotech/charts/keda-crds
+helm install keda-crds arieotech/keda-crds --namespace keda --create-namespace
 
 # 2. Install operator
+helm install keda arieotech/keda --namespace keda
+```
+
+An OCI registry is also available if you prefer it over the Helm repo:
+
+```bash
+helm install keda-crds oci://ghcr.io/arieotech/charts/keda-crds
 helm install keda oci://ghcr.io/arieotech/charts/keda
 ```
 
 ## Upgrading CRDs
 
 ```bash
-helm upgrade keda-crds oci://ghcr.io/arieotech/charts/keda-crds
+helm upgrade keda-crds arieotech/keda-crds --namespace keda
 ```
 
 ## ArgoCD integration

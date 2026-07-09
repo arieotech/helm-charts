@@ -22,6 +22,12 @@ Fixes two critical upstream gaps:
 - Kubernetes 1.27+
 - Helm 3.12+
 - `keda-crds` chart installed first (see below)
+- **Only one release of this chart per cluster.** The Metrics API Server registers a
+  cluster-scoped `APIService` (`v1beta1.external.metrics.k8s.io`) with a fixed name —
+  a second release anywhere in the cluster would collide on that same object. This
+  matches upstream KEDA's own single-instance-per-cluster design; it isn't something
+  `operator.watchNamespace` changes, since that only scopes what the operator watches,
+  not the cluster-scoped resources it registers.
 
 No cert-manager or other TLS provisioning is required — see
 [TLS Certificates](#tls-certificates) for how that's handled.
