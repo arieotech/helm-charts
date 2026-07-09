@@ -310,3 +310,14 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   Added a `wait-for-certs` initContainer to both the Metrics API Server and Admission
   Webhooks Deployments that polls every 2s for the cert files to appear, so the main
   container never starts (and never crash-loops) until the Secret is actually ready.
+- **The Metrics API Server's `helm test` still failed after the fix above**, now
+  immediately and consistently: `wget: TLS error from peer (alert code 40): handshake
+  failure` on every attempt, even against a Metrics API Server pod that was already
+  `Ready` with zero restarts. Root cause: busybox 1.36's built-in `wget` TLS client
+  only supports a small, dated cipher-suite set and cannot negotiate with Go's
+  `crypto/tls` defaults (the `k8s.io/apiserver` library the metrics-apiserver uses)
+  — a documented busybox bug, fixed only in 1.37
+  (lists.busybox.net/pipermail/busybox/2022-January/089412.html). Switched
+  `templates/tests/test-connection.yaml` from `busybox:1.36.1`/`wget` to
+  `curlimages/curl:8.7.1`/`curl` (same image the keycloak chart's `test-smoke.yaml`
+  already uses), which links a full TLS stack with no such gap.
