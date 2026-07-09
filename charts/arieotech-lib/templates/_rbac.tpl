@@ -28,7 +28,12 @@ itself — same as Kubernetes's own auto-generated projection for a regular pod)
 Usage: {{ include "arieotech.serviceAccountTokenVolume" . | nindent N }} inside `volumes:`.
 */}}
 {{- define "arieotech.serviceAccountTokenVolume" -}}
-- name: kube-api-access
+## Namespaced, not the bare "kube-api-access" Kubernetes itself uses for its
+## auto-injected projection — this volume coexists with user-supplied
+## extraVolumes/extraVolumeMounts in charts built on this library, and a bare
+## name is an easy, silent collision (duplicate volume names make the pod spec
+## invalid).
+- name: arieotech-kube-api-access
   projected:
     defaultMode: 420
     sources:
@@ -52,7 +57,7 @@ Matching volumeMount for arieotech.serviceAccountTokenVolume.
 Usage: {{ include "arieotech.serviceAccountTokenVolumeMount" . | nindent N }} inside `volumeMounts:`.
 */}}
 {{- define "arieotech.serviceAccountTokenVolumeMount" -}}
-- name: kube-api-access
+- name: arieotech-kube-api-access
   mountPath: /var/run/secrets/kubernetes.io/serviceaccount
   readOnly: true
 {{- end }}

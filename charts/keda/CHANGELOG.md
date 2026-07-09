@@ -388,3 +388,10 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   underscore-containing key would pass `helm lint` and only fail at
   `helm install` with an unhelpful Kubernetes API error. Added `propertyNames`
   validation requiring a valid Kubernetes name segment.
+- `arieotech-lib`'s `serviceAccountTokenVolume`/`...VolumeMount` helpers (used by
+  all three KEDA components) hardcoded the volume name `kube-api-access` — the
+  same name Kubernetes itself uses for its own auto-injected projection.
+  Since charts built on this library also accept user-supplied
+  `extraVolumes`/`extraVolumeMounts`, this was a silent collision risk (duplicate
+  volume names make a pod spec invalid). Renamed to `arieotech-kube-api-access`
+  in `arieotech-lib`.

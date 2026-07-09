@@ -30,3 +30,8 @@
   examples (`arieotech/keda-crds`) used everywhere else in this repo (the keycloak
   chart's README, and this chart's own `keda` companion README). Switched to the
   Helm-repo form as primary, with the OCI form kept as a documented alternative.
+- `scaledobject.yaml`'s `controller-gen.kubebuilder.io/version` annotation said
+  `v0.15.0` while all 5 other CRDs in this chart say `v0.16.5`. Checked against
+  the actual upstream manifest
+  (`kedacore/keda@v2.16.0`'s `config/crd/bases/keda.sh_scaledobjects.yaml`,
+  fetched directly, not assumed) — it's `v0.16.5` there too. Corrected.
