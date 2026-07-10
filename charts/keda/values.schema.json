@@ -116,7 +116,11 @@
         },
         "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
         "extraEnv": { "type": "array" },
-        "logLevel": { "type": "string" }
+        "logLevel": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "klog verbosity passed as --v=<value> (cmd/adapter, unlike the operator's zap-based debug/info/error levels above) — must be a non-negative integer, not a level name."
+        }
       }
     },
     "admissionWebhooks": {

@@ -415,3 +415,8 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   using the same bare name this helper renames away from — it actually uses a
   randomized suffix, so the real collision risk was always with user-supplied
   volumes, not Kubernetes' own injection.
+- `metricsApiServer.logLevel` was schema-validated as any string, but it's
+  passed to the adapter as klog's `--v=<value>` (unlike the operator's
+  zap-based `debug`/`info`/`error` levels a few fields above it in the same
+  file) — a level name like `"info"` would pass `helm lint` and crash the
+  adapter at runtime. Added a `^[0-9]+$` pattern.
