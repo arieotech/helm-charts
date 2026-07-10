@@ -80,8 +80,11 @@ spec:
               namespace {{ "{{" }} $labels.namespace {{ "}}" }} has had zero available replicas
               for more than 5 minutes. HPA external metrics queries are failing.
 
-        ## Alert when the Metrics API Server error rate is high
-        - alert: KedaMetricsApiServerHighErrorRate
+        ## Alert when the Metrics API Server's workqueue processing rate is high —
+        ## workqueue_adds_total measures reconciliation throughput/backpressure, not
+        ## errors; renamed from an earlier KedaMetricsApiServerHighErrorRate name
+        ## that didn't match what this actually measures.
+        - alert: KedaMetricsApiServerHighWorkqueueRate
           expr: |
             rate(workqueue_adds_total{
               job="{{ include "keda.fullname" . }}-metrics-apiserver"

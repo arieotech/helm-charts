@@ -376,8 +376,8 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   counter (`keda_scaledobject_errors_total > 0` / `keda_trigger_totals{type="error"}
   > 0`) — both are monotonically increasing, so once a single error was ever
   recorded, the alert would fire permanently, never resolving even if the errors
-  stopped. Switched both to `increase(...[5m]) > 0`, matching the pattern
-  `KedaMetricsApiServerHighErrorRate` already used.
+  stopped. Switched both to `increase(...[5m]) > 0`, matching the `rate(...)`
+  pattern the Metrics API Server's workqueue alert already used.
 - `serviceAccount.create: false` with no `name` set silently fell back to the
   namespace's `default` ServiceAccount, and every KEDA ClusterRoleBinding/
   RoleBinding would then grant its permissions to that default SA — an easy to
@@ -389,9 +389,29 @@ Chart versioning follows [Semantic Versioning](https://semver.org/).
   `helm install` with an unhelpful Kubernetes API error. Added `propertyNames`
   validation requiring a valid Kubernetes name segment.
 - `arieotech-lib`'s `serviceAccountTokenVolume`/`...VolumeMount` helpers (used by
-  all three KEDA components) hardcoded the volume name `kube-api-access` — the
-  same name Kubernetes itself uses for its own auto-injected projection.
+  all three KEDA components) hardcoded the generic volume name `kube-api-access`.
   Since charts built on this library also accept user-supplied
-  `extraVolumes`/`extraVolumeMounts`, this was a silent collision risk (duplicate
-  volume names make a pod spec invalid). Renamed to `arieotech-kube-api-access`
-  in `arieotech-lib`.
+  `extraVolumes`/`extraVolumeMounts`, this was a silent collision risk with a
+  user-supplied volume of the same name (duplicate volume names make a pod spec
+  invalid) — not with Kubernetes' own auto-injected token volume, which uses a
+  randomized suffix and wouldn't apply here anyway since
+  `automountServiceAccountToken` is `false`. Renamed to
+  `arieotech-kube-api-access` in `arieotech-lib`.
+- `KedaMetricsApiServerHighErrorRate` measured `workqueue_adds_total` (workqueue
+  processing throughput), not errors — a naming/intent mismatch that could
+  confuse on-call routing or dashboards keyed on alert name. Renamed to
+  `KedaMetricsApiServerHighWorkqueueRate`, matching what the alert's own
+  `summary`/`description` annotations already said.
+- `secrets.*.data`/`.stringData`/`.annotations` were typed as generic objects in
+  `values.schema.json`, so a non-string value (e.g. a bare number) would pass
+  `helm lint` and only fail later at `kubectl apply`. Added
+  `additionalProperties: {"type": "string"}` to all three.
+- README's TLS Certificates section said dependent pods "may crash-loop briefly"
+  waiting for the `<fullname>-certs` Secret — stale as of the `wait-for-certs`
+  initContainer fix earlier in this changelog, which makes them wait instead of
+  crash-looping. Corrected.
+- Corrected a comment in `arieotech-lib`'s `serviceAccountTokenVolume` helper
+  that inaccurately described Kubernetes' own auto-injected token volume as
+  using the same bare name this helper renames away from — it actually uses a
+  randomized suffix, so the real collision risk was always with user-supplied
+  volumes, not Kubernetes' own injection.

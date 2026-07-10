@@ -28,11 +28,12 @@ itself — same as Kubernetes's own auto-generated projection for a regular pod)
 Usage: {{ include "arieotech.serviceAccountTokenVolume" . | nindent N }} inside `volumes:`.
 */}}
 {{- define "arieotech.serviceAccountTokenVolume" -}}
-## Namespaced, not the bare "kube-api-access" Kubernetes itself uses for its
-## auto-injected projection — this volume coexists with user-supplied
-## extraVolumes/extraVolumeMounts in charts built on this library, and a bare
-## name is an easy, silent collision (duplicate volume names make the pod spec
-## invalid).
+## Namespaced rather than a bare "kube-api-access" — charts built on this library
+## also accept user-supplied extraVolumes/extraVolumeMounts, and a generic name
+## like that is an easy, silent collision to hit (duplicate volume names make a
+## pod spec invalid). Not a collision risk with Kubernetes' own auto-injected
+## token volume, which uses a randomized suffix (kube-api-access-<suffix>) and
+## wouldn't be injected here anyway since automountServiceAccountToken is false.
 - name: arieotech-kube-api-access
   projected:
     defaultMode: 420

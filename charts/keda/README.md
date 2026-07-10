@@ -140,9 +140,11 @@ release namespace, and automatically patches the resulting `caBundle` onto both 
 `ValidatingWebhookConfiguration` and the `APIService`. The Metrics API Server and (if
 enabled) Admission Webhooks mount that same Secret read-only at `/certs`.
 
-Both `<fullname>-certs` and its consumers are `optional: true`/self-healing: on first
-install the operator needs a moment to create the Secret, so dependent pods may
-crash-loop briefly until it appears — kubelet retries automatically, no action needed.
+The `<fullname>-certs` Secret is `optional: true` on its consumers, since on first
+install the operator needs a moment to create it. The Metrics API Server and (if
+enabled) Admission Webhooks Deployments each run a `wait-for-certs` initContainer
+that polls for the cert files before starting the main container, so they wait
+rather than crash-loop during that window — no action needed.
 
 If you run your own PKI and want to bypass this entirely, you'd need to remove
 `--enable-cert-rotation` from `templates/deployment-operator.yaml` and wire your own

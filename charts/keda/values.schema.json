@@ -359,9 +359,18 @@
         "type": "object",
         "properties": {
           "type": { "type": "string" },
-          "annotations": { "type": "object" },
-          "data": { "type": "object" },
-          "stringData": { "type": "object" }
+          "annotations": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "stringData": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
         }
       }
     }
