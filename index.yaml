@@ -1,6 +1,168 @@
 apiVersion: v1
 entries:
+  keda:
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: >
+            Initial release — production-grade KEDA 2.16.0 with fixed namespace-scoped RBAC
+            (upstream #5943), PSA restricted-mode, NetworkPolicy, SOC2/DPDP defaults,
+            Istio Ambient support. Use keda-crds chart for CRD management (upstream #5575).
+      artifacthub.io/images: |
+        - name: keda-operator
+          image: ghcr.io/kedacore/keda:2.16.0
+        - name: keda-metrics-apiserver
+          image: ghcr.io/kedacore/keda-metrics-apiserver:2.16.0
+        - name: keda-admission-webhooks
+          image: ghcr.io/kedacore/keda-admission-webhooks:2.16.0
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: KEDA documentation
+          url: https://keda.sh/docs/2.16/
+        - name: Upstream namespace RBAC fix (issue #5943)
+          url: https://github.com/kedacore/charts/issues/5943
+        - name: CRD separation rationale (issue #5575)
+          url: https://github.com/kedacore/charts/issues/5575
+      artifacthub.io/prerelease: "false"
+      artifacthub.io/recommendations: |
+        - url: https://artifacthub.io/packages/helm/arieotech/keda-crds
+    apiVersion: v2
+    appVersion: 2.16.0
+    created: "2026-07-13T06:34:36.235218246Z"
+    dependencies:
+    - name: arieotech-lib
+      repository: file://../arieotech-lib
+      version: 0.2.0
+    description: 'Production-grade KEDA (Kubernetes Event-Driven Autoscaling) operator
+      chart. Fixes upstream namespace-scoped RBAC (issue #5943). Includes operator,
+      Metrics API Server, and Admission Webhooks. PSA restricted-mode, NetworkPolicy,
+      JSON Schema, SOC2/DPDP defaults, Istio Ambient support. Use keda-crds chart
+      to install CRDs separately (GitOps/ArgoCD safe). '
+    digest: ff36bd2374845b53ad7c15dd974f95629a5ca84ea134179d467841edb982ac52
+    home: https://keda.sh
+    icon: https://keda.sh/img/logos/keda-icon-color.png
+    keywords:
+    - keda
+    - autoscaling
+    - hpa
+    - event-driven
+    - scaledobject
+    - karpenter
+    - kubernetes
+    maintainers:
+    - email: helm@arieotech.com
+      name: Arieotech
+      url: https://arieotech.com
+    name: keda
+    sources:
+    - https://github.com/arieotech/helm-charts/tree/main/charts/keda
+    - https://github.com/kedacore/keda
+    type: application
+    urls:
+    - https://github.com/arieotech/helm-charts/releases/download/keda-0.1.0/keda-0.1.0.tgz
+    version: 0.1.0
+  keda-crds:
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: >
+            Initial release — KEDA 2.16.0 CRDs as Helm-managed resources.
+            Arieotech fix for upstream issue #5575 (no CRD separation chart).
+            Enables independent CRD lifecycle management for GitOps/ArgoCD workflows.
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: KEDA operator chart
+          url: https://github.com/arieotech/helm-charts/tree/main/charts/keda
+        - name: CRD separation rationale (issue #5575)
+          url: https://github.com/kedacore/charts/issues/5575
+        - name: KEDA CRD documentation
+          url: https://keda.sh/docs/2.16/concepts/
+      artifacthub.io/prerelease: "false"
+      artifacthub.io/recommendations: |
+        - url: https://artifacthub.io/packages/helm/arieotech/keda
+    apiVersion: v2
+    appVersion: 2.16.0
+    created: "2026-07-13T06:34:36.357911475Z"
+    description: 'CRD-only companion chart for KEDA 2.16.0. Installs ScaledObject,
+      ScaledJob, TriggerAuthentication, ClusterTriggerAuthentication, CloudEventSource,
+      and ClusterCloudEventSource CRDs as Helm-managed resources so they can be versioned,
+      upgraded, and rolled back independently of the KEDA operator — the Arieotech
+      fix for upstream issue #5575. Safe for GitOps/ArgoCD workflows. '
+    digest: 155b6e5803e1da6f69a09097dd5e96091b9a5f759d8c52a90bd6d370a79027f2
+    home: https://keda.sh
+    icon: https://keda.sh/img/logos/keda-icon-color.png
+    keywords:
+    - keda
+    - crds
+    - autoscaling
+    - scaledobject
+    - gitops
+    - argocd
+    maintainers:
+    - email: helm@arieotech.com
+      name: Arieotech
+      url: https://arieotech.com
+    name: keda-crds
+    sources:
+    - https://github.com/arieotech/helm-charts/tree/main/charts/keda-crds
+    - https://github.com/kedacore/keda
+    type: application
+    urls:
+    - https://github.com/arieotech/helm-charts/releases/download/keda-crds-0.1.0/keda-crds-0.1.0.tgz
+    version: 0.1.0
   keycloak:
+  - annotations:
+      artifacthub.io/category: security
+      artifacthub.io/changes: |
+        - kind: changed
+          description: "Bump arieotech-lib dependency to 0.2.0 (adds Istio Ambient helpers used by the new keda chart; no functional change for keycloak)"
+      artifacthub.io/containsSecurityUpdates: "false"
+      artifacthub.io/images: |
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.6.2
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Chart source
+          url: https://github.com/arieotech/helm-charts/tree/main/charts/keycloak
+        - name: Keycloak project
+          url: https://www.keycloak.org
+        - name: Keycloak documentation
+          url: https://www.keycloak.org/documentation
+        - name: Arieotech
+          url: https://arieotech.com
+      artifacthub.io/prerelease: "false"
+    apiVersion: v2
+    appVersion: 26.6.2
+    created: "2026-07-13T06:34:36.506945342Z"
+    dependencies:
+    - name: arieotech-lib
+      repository: file://../arieotech-lib
+      version: 0.2.0
+    description: 'Production-grade Keycloak IAM. HA clustering, PSA restricted-mode,
+      JSON Schema validation, SOC2 and DPDP compliance defaults. Uses the official
+      quay.io/keycloak/keycloak image. '
+    digest: 9837996edf65fb2ebe98d25fb9ae67386fd8920cce39e6f80471fdb18a342a3a
+    home: https://www.keycloak.org
+    icon: https://www.keycloak.org/resources/images/icon.svg
+    keywords:
+    - keycloak
+    - iam
+    - sso
+    - oidc
+    - oauth2
+    - identity
+    maintainers:
+    - email: helm@arieotech.com
+      name: Arieotech
+      url: https://arieotech.com
+    name: keycloak
+    sources:
+    - https://github.com/arieotech/helm-charts/tree/main/charts/keycloak
+    - https://github.com/keycloak/keycloak
+    type: application
+    urls:
+    - https://github.com/arieotech/helm-charts/releases/download/keycloak-0.3.5/keycloak-0.3.5.tgz
+    version: 0.3.5
   - annotations:
       artifacthub.io/category: security
       artifacthub.io/changes: |
@@ -403,4 +565,4 @@ entries:
     urls:
     - https://github.com/arieotech/helm-charts/releases/download/keycloak-0.2.0/keycloak-0.2.0.tgz
     version: 0.2.0
-generated: "2026-06-12T10:43:28.343110384Z"
+generated: "2026-07-13T06:34:36.506980558Z"
