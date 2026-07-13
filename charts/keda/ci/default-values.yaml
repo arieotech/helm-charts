@@ -1,0 +1,22 @@
+## Minimal working install for ct install testing — NOT for production use.
+## Reduces resource requirements and disables HA features for a single-node kind cluster.
+
+operator:
+  replicaCount: 1
+
+metricsApiServer:
+  replicaCount: 1
+
+admissionWebhooks:
+  enabled: false
+
+pdb:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+metrics:
+  enabled: false
+
+topologySpreadConstraints: []

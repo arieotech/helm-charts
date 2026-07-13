@@ -1,0 +1,27 @@
+## Service for the KEDA Metrics API Server.
+## The Kubernetes aggregation layer routes external.metrics.k8s.io calls to this
+## Service on the https port. Health checks hit the same https port directly on the
+## pod (see deployment-metrics-apiserver.yaml) — there is no separate health port.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "keda.fullname" . }}-metrics-apiserver
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-apiserver
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "keda.metricsSelectorLabels" . | nindent 4 }}
+  ports:
+    - name: https
+      port: {{ .Values.metricsApiServer.port }}
+      targetPort: https
+      protocol: TCP
+    {{- if .Values.metrics.enabled }}
+    - name: metrics
+      port: 8080
+      targetPort: metrics
+      protocol: TCP
+    {{- end }}

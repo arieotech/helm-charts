@@ -4,6 +4,16 @@ All notable changes to this chart are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Chart versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.5] - 2026-07-08
+
+### Changed
+
+- **`arieotech-lib` dependency bumped to 0.2.0** — required so `helm dependency build` resolves
+  against the library chart's new version (adds Istio Ambient helpers used by the `keda` chart).
+  No functional change to this chart's rendered output.
+
+---
+
 ## [0.3.4] - 2026-06-11
 
 ### Fixed

@@ -1,0 +1,136 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: scaledjobs.keda.sh
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+    {{- include "keda-crds.annotations" . | nindent 4 }}
+  labels:
+    {{- include "keda-crds.labels" . | nindent 4 }}
+spec:
+  group: keda.sh
+  names:
+    kind: ScaledJob
+    listKind: ScaledJobList
+    plural: scaledjobs
+    singular: scaledjob
+    shortNames:
+      - sj
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Max
+          type: integer
+          jsonPath: .spec.maxReplicaCount
+        - name: Triggers
+          type: string
+          jsonPath: .spec.triggers[*].type
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Active
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Active")].status
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              required:
+                - jobTargetRef
+                - triggers
+              properties:
+                jobTargetRef:
+                  type: object
+                  required:
+                    - template
+                  properties:
+                    template:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    parallelism:
+                      type: integer
+                      format: int32
+                    completions:
+                      type: integer
+                      format: int32
+                    activeDeadlineSeconds:
+                      type: integer
+                      format: int64
+                    backoffLimit:
+                      type: integer
+                      format: int32
+                    ttlSecondsAfterFinished:
+                      type: integer
+                      format: int32
+                maxReplicaCount:
+                  type: integer
+                  format: int64
+                minReplicaCount:
+                  type: integer
+                  format: int64
+                pollingInterval:
+                  type: integer
+                  format: int32
+                successfulJobsHistoryLimit:
+                  type: integer
+                  format: int32
+                failedJobsHistoryLimit:
+                  type: integer
+                  format: int32
+                envSourceContainerName:
+                  type: string
+                rolloutStrategy:
+                  type: string
+                triggers:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                    properties:
+                      type:
+                        type: string
+                      name:
+                        type: string
+                      metadata:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      authenticationRef:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          kind:
+                            type: string
+                            enum:
+                              - TriggerAuthentication
+                              - ClusterTriggerAuthentication
+                scalingStrategy:
+                  type: object
+                  properties:
+                    strategy:
+                      type: string
+                    customScalingQueueLengthDeduction:
+                      type: integer
+                      format: int32
+                    customScalingRunningJobPercentage:
+                      type: string
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true

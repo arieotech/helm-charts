@@ -1,0 +1,33 @@
+## APIService registration for keda-metrics-apiserver (external.metrics.k8s.io/v1beta1)
+## Cluster-scoped with a fixed name — only one release of this chart can exist per
+## cluster (see README's Prerequisites section).
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.external.metrics.k8s.io
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-apiserver
+spec:
+  service:
+    name: {{ include "keda.fullname" . }}-metrics-apiserver
+    namespace: {{ .Release.Namespace }}
+    port: {{ .Values.metricsApiServer.port }}
+  group: external.metrics.k8s.io
+  version: v1beta1
+  ## Deliberately no caBundle/insecureSkipTLSVerify here. Kubernetes only rejects
+  ## setting BOTH at once ("may not be true if caBundle is present") — it does not
+  ## require either to be set. The operator's cert rotator (deployment-operator.yaml's
+  ## --enable-cert-rotation) patches a real caBundle onto this object shortly after it
+  ## starts (rotator.APIService hook in pkg/certificates). An earlier version of this
+  ## chart rendered insecureSkipTLSVerify: true here as a "bootstrap fallback" — that
+  ## made every fresh install fail: the rotator's first reconcile tries to add caBundle
+  ## to the object the chart already created with insecureSkipTLSVerify: true, and the
+  ## API server's own validation rejects the update outright (confirmed via a live `ct
+  ## install` failure: "APIService...invalid: spec.insecureSkipTLSVerify: Invalid
+  ## value: true: may not be true if caBundle is present"). Leaving both unset means
+  ## external-metrics calls fail TLS verification for the few seconds before the
+  ## rotator's first reconcile — an acceptable bootstrap window, same as the
+  ## ValidatingWebhookConfiguration's caBundle arriving late.
+  groupPriorityMinimum: 100
+  versionPriority: 100

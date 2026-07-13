@@ -1,0 +1,177 @@
+{{- if .Values.networkPolicy.enabled }}
+## NetworkPolicy for the KEDA operator.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "keda.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "keda.operatorSelectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    ## Always allow the gRPC channel the Metrics API Server uses to resolve external
+    ## metrics — required regardless of metrics.enabled, since it is unrelated to
+    ## Prometheus (see deployment-operator.yaml). Restricted to metrics-apiserver pods
+    ## specifically, mirroring the podSelector already used on the reverse (egress)
+    ## rule in the Metrics API Server's own policy below.
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "keda.metricsSelectorLabels" . | nindent 14 }}
+      ports:
+        - port: 9666
+          protocol: TCP
+    ## Port-only: health probes come from the kubelet process on the node, which has
+    ## no selectable pod/namespace identity Kubernetes NetworkPolicy can match.
+    - ports:
+        - port: 8081
+          protocol: TCP
+    {{- if .Values.metrics.enabled }}
+    ## Port-only: allows inbound from ANY source on the Prometheus port, not restricted
+    ## to Prometheus specifically. Kubernetes NetworkPolicy has no portable selector
+    ## for an arbitrary in- or out-of-cluster scraper; use networkPolicy.extraIngress
+    ## to add a podSelector/namespaceSelector for your Prometheus if you need this tighter.
+    - ports:
+        - port: 8080
+          protocol: TCP
+    {{- end }}
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    ## Always allow DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    ## Allow Kubernetes API server (operator watches resources)
+    {{- include "keda.kubeApiServerEgressRule" . | nindent 4 }}
+    ## Default-deny beyond this point. The operator connects to arbitrary trigger
+    ## sources (Redis, RabbitMQ, Kafka, cloud APIs, etc.) depending on which
+    ## ScaledObjects are deployed — add a rule per trigger source here.
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+## NetworkPolicy for the KEDA Metrics API Server.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "keda.fullname" . }}-metrics-apiserver
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-apiserver
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "keda.metricsSelectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    ## Allow kube-aggregator to reach the Metrics API Server on HTTPS. kube-aggregator
+    ## is part of the API server process, so this reuses networkPolicy.kubeApiServerCIDR;
+    ## port-only (any source) when that value is unset — see the helper's doc comment.
+    ##
+    ## CAVEAT: kubelet's health/readiness probes also hit this same port (see
+    ## deployment-metrics-apiserver.yaml — there is no separate health port on this
+    ## binary). If you set networkPolicy.kubeApiServerCIDR, it restricts this rule to
+    ## that CIDR only, which also blocks kubelet's probe traffic (kubelet has no
+    ## selectable identity NetworkPolicy can carve out an exception for) and leaves
+    ## this Deployment permanently NotReady. There is no NetworkPolicy-only way to
+    ## allow "kube-aggregator from a specific CIDR" and "kubelet from the node" on the
+    ## same port simultaneously — adding an unconditional rule for kubelet would just
+    ## make the CIDR restriction on this rule meaningless. Do not set
+    ## kubeApiServerCIDR while running with this chart's default health-check setup.
+    {{- include "keda.kubeApiServerIngressRule" (dict "root" $ "port" .Values.metricsApiServer.port) | nindent 4 }}
+    {{- if .Values.metrics.enabled }}
+    ## Port-only: allows inbound from ANY source on the Prometheus port, not restricted
+    ## to Prometheus specifically — see the equivalent comment on the operator policy above.
+    - ports:
+        - port: 8080
+          protocol: TCP
+    {{- end }}
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    ## DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    ## Kubernetes API server
+    {{- include "keda.kubeApiServerEgressRule" . | nindent 4 }}
+    ## Communication with the operator for metrics resolution
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "keda.operatorSelectorLabels" . | nindent 14 }}
+      ports:
+        - port: 9666
+          protocol: TCP
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- if .Values.admissionWebhooks.enabled }}
+---
+## NetworkPolicy for the KEDA Admission Webhooks.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "keda.fullname" . }}-admission-webhooks
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhooks
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "keda.webhooksSelectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    ## Allow kube-apiserver to reach the webhook on the webhook port. Reuses
+    ## networkPolicy.kubeApiServerCIDR (same rationale as the metrics-apiserver
+    ## ingress rule above); port-only (any source) when that value is unset.
+    {{- include "keda.kubeApiServerIngressRule" (dict "root" $ "port" .Values.admissionWebhooks.port) | nindent 4 }}
+    ## Port-only: health probes come from the kubelet process on the node, which has
+    ## no selectable pod/namespace identity Kubernetes NetworkPolicy can match.
+    - ports:
+        - port: 8081
+          protocol: TCP
+    {{- if .Values.metrics.enabled }}
+    ## Port-only: allows inbound from ANY source on the Prometheus port, not restricted
+    ## to Prometheus specifically — see the equivalent comment on the operator policy above.
+    - ports:
+        - port: 8080
+          protocol: TCP
+    {{- end }}
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    ## DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    ## Kubernetes API server
+    {{- include "keda.kubeApiServerEgressRule" . | nindent 4 }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end }}

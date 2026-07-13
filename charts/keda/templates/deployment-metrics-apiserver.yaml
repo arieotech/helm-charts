@@ -1,0 +1,197 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keda.fullname" . }}-metrics-apiserver
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-apiserver
+spec:
+  replicas: {{ .Values.metricsApiServer.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "keda.metricsSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "keda.metricsSelectorLabels" . | nindent 8 }}
+        {{- include "arieotech.istioAmbientLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- include "keda.podAnnotations" . | nindent 6 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "keda.metricsServiceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "arieotech.podSecurityContext" . | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      ## Waits for the operator's cert rotator to populate the certs Secret before the
+      ## main container starts. Without this, on first install the Secret doesn't exist
+      ## yet (optional: true lets the pod schedule anyway), the adapter binary exits
+      ## immediately on the missing cert files, and kubelet's exponential
+      ## CrashLoopBackOff (10s/20s/40s/80s...) can outlast the helm test hook's retry
+      ## budget — this polls every 2s instead, so the pod is Ready almost immediately
+      ## once the operator finishes its first reconcile.
+      initContainers:
+        - name: wait-for-certs
+          image: busybox:1.36.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              until [ -s /certs/tls.crt ] && [ -s /certs/tls.key ] && [ -s /certs/ca.crt ]; do
+                echo "Waiting for cert-rotation Secret to be populated..."
+                sleep 2
+              done
+          securityContext:
+            {{- include "arieotech.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.metricsApiServer.resources | nindent 12 }}
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+      containers:
+        - name: keda-metrics-apiserver
+          image: {{ include "keda.componentImage" .Values.metricsApiServer.image | quote }}
+          imagePullPolicy: {{ .Values.metricsApiServer.image.pullPolicy }}
+          command:
+            - /keda-adapter
+          args:
+            - --secure-port={{ .Values.metricsApiServer.port }}
+            - --logtostderr=true
+            - --v={{ .Values.metricsApiServer.logLevel }}
+            ## Required — without --cert-dir, this binary's TLS cert directory falls
+            ## back to a k8s.io/apiserver default of apiserver.local.config/certificates,
+            ## which nothing populates, and it crashes trying to read ca.crt from
+            ## there for its gRPC client connection to the operator (verified via the
+            ## exact crash and cross-checked against KEDA's own upstream
+            ## config/metrics-server/deployment.yaml, which passes this same set of
+            ## flags). Reads the cert bundle the operator's --enable-cert-rotation
+            ## generates (see deployment-operator.yaml).
+            - --cert-dir=/certs
+            - --tls-cert-file=/certs/tls.crt
+            - --tls-private-key-file=/certs/tls.key
+            - --client-ca-file=/certs/ca.crt
+          env:
+            - name: KEDA_HTTP_DEFAULT_TIMEOUT
+              value: "3000"
+            - name: KEDA_HTTP_MIN_TLS_VERSION
+              value: "TLS12"
+            ## Required — the adapter calls the same pkg/util.GetWatchNamespaces() as the
+            ## operator and exits fatally if this isn't present at all, even set to "".
+            ## Kept in sync with operator.watchNamespace since both watch the same CRs.
+            - name: WATCH_NAMESPACE
+              value: {{ .Values.operator.watchNamespace | quote }}
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- with .Values.metricsApiServer.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: https
+              containerPort: {{ .Values.metricsApiServer.port }}
+              protocol: TCP
+            {{- if .Values.metrics.enabled }}
+            ## The adapter's real --port default (cmd/adapter/main.go's
+            ## RunMetricsServer, always started regardless of any flag — this gate
+            ## only controls whether the chart exposes/advertises it via Service and
+            ## NetworkPolicy, not whether the process listens).
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+            {{- end }}
+          ## Verified against KEDA's own upstream deployment manifest
+          ## (config/metrics-server/deployment.yaml @ v2.16.0): the adapter serves
+          ## /healthz and /readyz on the secure API port over HTTPS — there is no
+          ## separate plain-HTTP health port. kubelet's httpGet probe does not verify
+          ## the server certificate, so the self-signed cert here is not a problem.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            {{- include "arieotech.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.metricsApiServer.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+            {{- include "arieotech.serviceAccountTokenVolumeMount" . | nindent 12 }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        ## Populated by the operator's cert rotator (--enable-cert-rotation) — see
+        ## deployment-operator.yaml. optional: true so this pod can still be scheduled
+        ## before the operator has had a chance to create the Secret on first install;
+        ## the wait-for-certs initContainer blocks the main container until it's ready.
+        - name: certs
+          secret:
+            secretName: {{ include "keda.fullname" . }}-certs
+            optional: true
+        {{- include "arieotech.serviceAccountTokenVolume" . | nindent 8 }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- else }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "keda.metricsSelectorLabels" . | nindent 20 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- range . }}
+        - {{ toYaml . | nindent 10 | trim }}
+          labelSelector:
+            matchLabels:
+              {{- include "keda.metricsSelectorLabels" $ | nindent 14 }}
+        {{- end }}
+      {{- end }}

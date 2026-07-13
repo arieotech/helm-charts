@@ -1,0 +1,52 @@
+{{- if .Values.admissionWebhooks.enabled }}
+## Registers the admission webhooks with the API server. Without this, the
+## admission-webhooks Deployment/Service run but never receive any admission
+## requests — see service-admission-webhooks.yaml. Matches upstream KEDA's
+## config/webhooks/validation_webhooks.yaml (github.com/kedacore/keda @ v2.16.0).
+## caBundle is intentionally never set here: the operator's cert rotator
+## (deployment-operator.yaml's --enable-cert-rotation, which is passed this exact
+## resource's name via --validating-webhook-name) auto-patches it in shortly after
+## the operator starts. Omitting it is valid for a ValidatingWebhookConfiguration
+## (unlike an APIService); until the rotator patches it, calls fail closed against
+## the API server's own trust roots, which fails open overall since failurePolicy
+## is Ignore below.
+{{- $webhookRules := list
+  (dict "name" "vscaledobject.kb.io" "path" "/validate-keda-sh-v1alpha1-scaledobject" "group" "keda.sh" "resource" "scaledobjects")
+  (dict "name" "vscaledjob.kb.io" "path" "/validate-keda-sh-v1alpha1-scaledjob" "group" "keda.sh" "resource" "scaledjobs")
+  (dict "name" "vstriggerauthentication.kb.io" "path" "/validate-keda-sh-v1alpha1-triggerauthentication" "group" "keda.sh" "resource" "triggerauthentications")
+  (dict "name" "vsclustertriggerauthentication.kb.io" "path" "/validate-keda-sh-v1alpha1-clustertriggerauthentication" "group" "keda.sh" "resource" "clustertriggerauthentications")
+  (dict "name" "vcloudeventsource.kb.io" "path" "/validate-eventing-keda-sh-v1alpha1-cloudeventsource" "group" "eventing.keda.sh" "resource" "cloudeventsources")
+  (dict "name" "vclustercloudeventsource.kb.io" "path" "/validate-eventing-keda-sh-v1alpha1-clustercloudeventsource" "group" "eventing.keda.sh" "resource" "clustercloudeventsources")
+}}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "keda.fullname" . }}-admission
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhooks
+webhooks:
+  {{- range $webhookRules }}
+  - name: {{ .name }}
+    admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: {{ include "keda.fullname" $ }}-admission-webhooks
+        namespace: {{ $.Release.Namespace }}
+        path: {{ .path }}
+        port: {{ $.Values.admissionWebhooks.port }}
+    ## Fail open: if the webhook is unreachable, admission proceeds without KEDA's
+    ## validation rather than blocking cluster operations. Matches upstream.
+    failurePolicy: Ignore
+    matchPolicy: Equivalent
+    sideEffects: None
+    timeoutSeconds: 10
+    namespaceSelector: {}
+    objectSelector: {}
+    rules:
+      - apiGroups: [{{ .group | quote }}]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: [{{ .resource | quote }}]
+  {{- end }}
+{{- end }}

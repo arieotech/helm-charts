@@ -1,0 +1,57 @@
+apiVersion: v2
+name: keda
+description: >
+  Production-grade KEDA (Kubernetes Event-Driven Autoscaling) operator chart.
+  Fixes upstream namespace-scoped RBAC (issue #5943). Includes operator,
+  Metrics API Server, and Admission Webhooks. PSA restricted-mode, NetworkPolicy,
+  JSON Schema, SOC2/DPDP defaults, Istio Ambient support.
+  Use keda-crds chart to install CRDs separately (GitOps/ArgoCD safe).
+type: application
+version: 0.1.0
+appVersion: "2.16.0"
+keywords:
+  - keda
+  - autoscaling
+  - hpa
+  - event-driven
+  - scaledobject
+  - karpenter
+  - kubernetes
+home: https://keda.sh
+sources:
+  - https://github.com/arieotech/helm-charts/tree/main/charts/keda
+  - https://github.com/kedacore/keda
+icon: https://keda.sh/img/logos/keda-icon-color.png
+maintainers:
+  - name: Arieotech
+    email: helm@arieotech.com
+    url: https://arieotech.com
+dependencies:
+  - name: arieotech-lib
+    version: "0.2.0"
+    repository: "file://../arieotech-lib"
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/changes: |
+    - kind: added
+      description: >
+        Initial release — production-grade KEDA 2.16.0 with fixed namespace-scoped RBAC
+        (upstream #5943), PSA restricted-mode, NetworkPolicy, SOC2/DPDP defaults,
+        Istio Ambient support. Use keda-crds chart for CRD management (upstream #5575).
+  artifacthub.io/images: |
+    - name: keda-operator
+      image: ghcr.io/kedacore/keda:2.16.0
+    - name: keda-metrics-apiserver
+      image: ghcr.io/kedacore/keda-metrics-apiserver:2.16.0
+    - name: keda-admission-webhooks
+      image: ghcr.io/kedacore/keda-admission-webhooks:2.16.0
+  artifacthub.io/recommendations: |
+    - url: https://artifacthub.io/packages/helm/arieotech/keda-crds
+  artifacthub.io/links: |
+    - name: KEDA documentation
+      url: https://keda.sh/docs/2.16/
+    - name: Upstream namespace RBAC fix (issue #5943)
+      url: https://github.com/kedacore/charts/issues/5943
+    - name: CRD separation rationale (issue #5575)
+      url: https://github.com/kedacore/charts/issues/5575

@@ -1,0 +1,180 @@
+{{- if .Values.admissionWebhooks.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keda.fullname" . }}-admission-webhooks
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhooks
+spec:
+  replicas: {{ .Values.admissionWebhooks.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "keda.webhooksSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "keda.webhooksSelectorLabels" . | nindent 8 }}
+        {{- include "arieotech.istioAmbientLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- include "keda.podAnnotations" . | nindent 6 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "keda.webhooksServiceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "arieotech.podSecurityContext" . | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      ## See deployment-metrics-apiserver.yaml's wait-for-certs initContainer — same
+      ## bootstrap race against the operator's cert rotator, same fix.
+      initContainers:
+        - name: wait-for-certs
+          image: busybox:1.36.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              until [ -s /certs/tls.crt ] && [ -s /certs/tls.key ] && [ -s /certs/ca.crt ]; do
+                echo "Waiting for cert-rotation Secret to be populated..."
+                sleep 2
+              done
+          securityContext:
+            {{- include "arieotech.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.admissionWebhooks.resources | nindent 12 }}
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+      containers:
+        - name: keda-admission-webhooks
+          image: {{ include "keda.componentImage" .Values.admissionWebhooks.image | quote }}
+          imagePullPolicy: {{ .Values.admissionWebhooks.image.pullPolicy }}
+          command:
+            - /keda-admission-webhooks
+          args:
+            - --zap-log-level={{ .Values.operator.logLevel }}
+            - --zap-encoder={{ .Values.operator.logEncoder }}
+            - --zap-time-encoding={{ .Values.operator.logTimeFormat }}
+            {{- if not .Values.metrics.enabled }}
+            ## Standard controller-runtime idiom: --metrics-bind-address=0 disables the
+            ## metrics server entirely (this binary has no separate enable/disable flag,
+            ## unlike the operator's --enable-prometheus-metrics).
+            - --metrics-bind-address=0
+            {{- end }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- with .Values.admissionWebhooks.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: webhook
+              containerPort: {{ .Values.admissionWebhooks.port }}
+              protocol: TCP
+            ## --health-probe-bind-address's real default. The chart previously had
+            ## this backwards (health=8080, metrics=8081) — swapped to match the
+            ## binary's actual, unconfigured controller-runtime defaults.
+            - name: health
+              containerPort: 8081
+              protocol: TCP
+            {{- if .Values.metrics.enabled }}
+            ## --metrics-bind-address's real default (Prometheus).
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            {{- include "arieotech.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.admissionWebhooks.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+            {{- include "arieotech.serviceAccountTokenVolumeMount" . | nindent 12 }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        ## Same shared cert bundle the operator's cert rotator manages for the whole
+        ## release (see deployment-operator.yaml's --enable-cert-rotation) — not a
+        ## separately-provisioned Secret. optional: true so this pod can still be
+        ## scheduled before the operator has created it; the wait-for-certs
+        ## initContainer blocks the main container until it's ready.
+        - name: certs
+          secret:
+            secretName: {{ include "keda.fullname" . }}-certs
+            optional: true
+        {{- include "arieotech.serviceAccountTokenVolume" . | nindent 8 }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- else }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "keda.webhooksSelectorLabels" . | nindent 20 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- range . }}
+        - {{ toYaml . | nindent 10 | trim }}
+          labelSelector:
+            matchLabels:
+              {{- include "keda.webhooksSelectorLabels" $ | nindent 14 }}
+        {{- end }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,254 @@
+## ScaledObject CRD — KEDA 2.16.0
+## Source: https://github.com/kedacore/keda/releases/tag/v2.16.0
+##
+## The helm.sh/resource-policy: keep annotation prevents Helm from deleting
+## this CRD on `helm uninstall`, protecting live ScaledObject resources.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: scaledobjects.keda.sh
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+    {{- include "keda-crds.annotations" . | nindent 4 }}
+  labels:
+    {{- include "keda-crds.labels" . | nindent 4 }}
+spec:
+  group: keda.sh
+  names:
+    kind: ScaledObject
+    listKind: ScaledObjectList
+    plural: scaledobjects
+    shortNames:
+      - so
+    singular: scaledobject
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .spec.scaleTargetRef.name
+          name: ScaleTarget
+          type: string
+        - jsonPath: .spec.minReplicaCount
+          name: Min
+          type: integer
+        - jsonPath: .spec.maxReplicaCount
+          name: Max
+          type: integer
+        - jsonPath: .status.conditions[?(@.type=="Ready")].status
+          name: Ready
+          type: string
+        - jsonPath: .status.conditions[?(@.type=="Active")].status
+          name: Active
+          type: string
+        - jsonPath: .status.conditions[?(@.type=="Fallback")].status
+          name: Fallback
+          type: string
+        - jsonPath: .status.conditions[?(@.type=="Paused")].status
+          name: Paused
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+      name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: ScaledObject is the Schema for the scaledobjects API
+          type: object
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: ScaledObjectSpec defines the desired state of ScaledObject
+              type: object
+              required:
+                - scaleTargetRef
+                - triggers
+              properties:
+                cooldownPeriod:
+                  description: >
+                    The period (in seconds) to wait after the last trigger reported
+                    active before scaling the resource back to 0.
+                  format: int32
+                  type: integer
+                fallback:
+                  description: >
+                    Fallback is the spec for fallback options when a scaler is in an
+                    error state.
+                  type: object
+                  required:
+                    - failureThreshold
+                    - replicas
+                  properties:
+                    failureThreshold:
+                      format: int32
+                      type: integer
+                    replicas:
+                      format: int32
+                      type: integer
+                idleReplicaCount:
+                  description: >
+                    IdleReplicaCount is the number of replicas to scale the ScaleTarget
+                    to when KEDA is in an idle state (no active triggers). Default 0.
+                  format: int32
+                  type: integer
+                maxReplicaCount:
+                  description: Maximum number of replicas the scaler can scale out to.
+                  format: int32
+                  type: integer
+                minReplicaCount:
+                  description: Minimum number of replicas the scaler can scale in to.
+                  format: int32
+                  type: integer
+                paused:
+                  description: Pause scaling for this ScaledObject when set to true.
+                  type: boolean
+                pollingInterval:
+                  description: How often (in seconds) KEDA checks each trigger.
+                  format: int32
+                  type: integer
+                scaleTargetRef:
+                  description: ScaleTargetRef holds the reference to the target resource to scale.
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    apiVersion:
+                      type: string
+                    envSourceContainerName:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                advanced:
+                  description: Advanced holds advanced scaling configuration.
+                  type: object
+                  properties:
+                    horizontalPodAutoscalerConfig:
+                      type: object
+                      properties:
+                        behavior:
+                          description: HPA scale behaviour (same schema as HPA v2).
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        name:
+                          description: Explicit name for the HPA resource.
+                          type: string
+                    restoreToOriginalReplicaCount:
+                      description: >
+                        When scaling down to 0, restore target to its original replica
+                        count when ScaledObject is deleted.
+                      type: boolean
+                    scalingModifiers:
+                      type: object
+                      properties:
+                        activationTarget:
+                          type: string
+                        formula:
+                          type: string
+                        metricType:
+                          description: MetricTarget type — Value, AverageValue or Utilization.
+                          type: string
+                        target:
+                          type: string
+                triggers:
+                  description: List of triggers that the scaler uses.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - metadata
+                    properties:
+                      authenticationRef:
+                        type: object
+                        required:
+                          - name
+                        properties:
+                          kind:
+                            enum:
+                              - TriggerAuthentication
+                              - ClusterTriggerAuthentication
+                            type: string
+                          name:
+                            type: string
+                      metadata:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      metricType:
+                        description: Value, AverageValue or Utilization.
+                        type: string
+                      name:
+                        type: string
+                      type:
+                        type: string
+                      useCachedMetrics:
+                        type: boolean
+            status:
+              description: ScaledObjectStatus defines the observed state of ScaledObject
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - status
+                      - type
+                    properties:
+                      message:
+                        type: string
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        type: string
+                externalMetricNames:
+                  type: array
+                  items:
+                    type: string
+                health:
+                  additionalProperties:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  type: object
+                hpaName:
+                  type: string
+                lastActiveTime:
+                  format: date-time
+                  type: string
+                observedGeneration:
+                  format: int64
+                  type: integer
+                originalReplicaCount:
+                  format: int32
+                  type: integer
+                pausedReplicaCount:
+                  format: int32
+                  type: integer
+                resourceMetricNames:
+                  type: array
+                  items:
+                    type: string
+                scaleTargetGVKR:
+                  type: object
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                    resource:
+                      type: string
+                    version:
+                      type: string
+                scaleTargetKind:
+                  type: string
+      served: true
+      storage: true
+      subresources:
+        status: {}

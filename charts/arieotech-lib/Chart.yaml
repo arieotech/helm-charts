@@ -1,8 +1,8 @@
 apiVersion: v2
 name: arieotech-lib
-description: Arieotech library chart — shared Helm helpers for security contexts, NetworkPolicy, ServiceMonitor, PDB, HPA, and RBAC
+description: Arieotech library chart — shared Helm helpers for security contexts, NetworkPolicy, ServiceMonitor, PDB, HPA, RBAC, and Istio Ambient Mesh
 type: library
-version: 0.1.0
+version: 0.2.0
 keywords:
   - library
   - helper
@@ -21,4 +21,6 @@ annotations:
   artifacthub.io/prerelease: "true"
   artifacthub.io/changes: |
     - kind: added
-      description: Initial library chart release
+      description: "arieotech.istioAmbientLabels and arieotech.istioExcludedPorts helpers for Istio Ambient Mesh pod label and ztunnel port exclusion annotation"
+    - kind: added
+      description: "arieotech.serviceAccountTokenVolume and arieotech.serviceAccountTokenVolumeMount helpers — explicit projected token volume for pods that disable automountServiceAccountToken but still need Kubernetes API access"

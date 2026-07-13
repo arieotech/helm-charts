@@ -1,0 +1,32 @@
+## Service for the KEDA operator.
+## Exposes health (8081), the always-on gRPC channel the Metrics API Server uses to
+## resolve external metrics (9666, unrelated to Prometheus), and Prometheus metrics
+## (8080, only when metrics.enabled) — see deployment-operator.yaml for why these
+## numbers matter (they must match the operator binary's real flag defaults).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "keda.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "keda.operatorSelectorLabels" . | nindent 4 }}
+  ports:
+    - name: health
+      port: 8081
+      targetPort: health
+      protocol: TCP
+    - name: grpc-metrics
+      port: 9666
+      targetPort: grpc-metrics
+      protocol: TCP
+    {{- if .Values.metrics.enabled }}
+    - name: metrics
+      port: 8080
+      targetPort: metrics
+      protocol: TCP
+    {{- end }}

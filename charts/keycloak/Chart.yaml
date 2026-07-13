@@ -5,7 +5,7 @@ description: >
   JSON Schema validation, SOC2 and DPDP compliance defaults.
   Uses the official quay.io/keycloak/keycloak image.
 type: application
-version: 0.3.4
+version: 0.3.5
 appVersion: "26.6.2"
 keywords:
   - keycloak
@@ -25,7 +25,7 @@ maintainers:
     url: https://arieotech.com
 dependencies:
   - name: arieotech-lib
-    version: "0.1.0"
+    version: "0.2.0"
     repository: "file://../arieotech-lib"
 annotations:
   artifacthub.io/license: Apache-2.0
@@ -33,8 +33,8 @@ annotations:
   artifacthub.io/category: security
   artifacthub.io/containsSecurityUpdates: "false"
   artifacthub.io/changes: |
-    - kind: fixed
-      description: "KC_HEALTH_ENABLED and KC_METRICS_ENABLED no longer duplicated when also set via keycloak.extraEnv"
+    - kind: changed
+      description: "Bump arieotech-lib dependency to 0.2.0 (adds Istio Ambient helpers used by the new keda chart; no functional change for keycloak)"
   artifacthub.io/images: |
     - name: keycloak
       image: quay.io/keycloak/keycloak:26.6.2

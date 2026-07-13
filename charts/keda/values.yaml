@@ -1,0 +1,220 @@
+## Arieotech KEDA Helm Chart — Production Defaults
+## Fixes upstream namespace-scoped RBAC (issue #5943)
+## Install CRDs separately with the keda-crds chart (issue #5575 fix)
+
+global:
+  imagePullSecrets: []
+
+## -- KEDA Operator component
+operator:
+  image:
+    registry: ghcr.io
+    repository: kedacore/keda
+    tag: "2.16.0"
+    digest: ""
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  ## Arieotech fix for upstream issue #5943:
+  ## Restrict the operator to specific namespaces (comma-separated).
+  ## Empty string = cluster-wide watch (default upstream behaviour).
+  ## Example: "default,production,staging"
+  watchNamespace: ""
+  ## Extra environment variables injected into the operator container
+  extraEnv: []
+  ## Log level: debug, info, error
+  logLevel: "info"
+  ## Log encoder: console, json
+  logEncoder: "json"
+  ## Log time encoding: epoch, millis, nano, iso8601, rfc3339, rfc3339nano
+  logTimeFormat: "rfc3339"
+
+## -- KEDA Metrics API Server component
+metricsApiServer:
+  image:
+    registry: ghcr.io
+    repository: kedacore/keda-metrics-apiserver
+    tag: "2.16.0"
+    digest: ""
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  ## Port that the Metrics API Server listens on for HTTPS (aggregated API)
+  port: 6443
+  ## Extra environment variables
+  extraEnv: []
+  ## Log level
+  logLevel: "0"
+
+## -- KEDA Admission Webhooks component
+admissionWebhooks:
+  ## Defaults to disabled pending live CI confirmation of the operator's cert-rotation
+  ## mechanism (deployment-operator.yaml's --enable-cert-rotation), which provisions
+  ## this component's TLS cert automatically — no cert-manager or manual caBundle
+  ## needed. Once confirmed working end-to-end, this can default to true.
+  enabled: false
+  image:
+    registry: ghcr.io
+    repository: kedacore/keda-admission-webhooks
+    tag: "2.16.0"
+    digest: ""
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  ## Port that the webhook server listens on
+  port: 9443
+  ## Extra environment variables
+  extraEnv: []
+
+## -- Shared values (apply globally when component-level override is absent)
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+## Not configurable: every component's ServiceAccount and pod spec hardcode
+## automountServiceAccountToken: false. KEDA authenticates to the API server via the
+## explicit projected token volume in arieotech.serviceAccountTokenVolume instead —
+## setting this true would be actively wrong for this chart's design, not just a no-op.
+
+podAnnotations: {}
+podLabels: {}
+
+## Pod security context (PSA restricted-mode compliant)
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container security context (PSA restricted-mode compliant)
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+priorityClassName: ""
+
+## KEDA operator needs time to finish in-flight ScaledObject reconciliations on shutdown.
+terminationGracePeriodSeconds: 30
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+
+## NetworkPolicy — enabled by default (Arieotech baseline requirement)
+networkPolicy:
+  enabled: true
+  ## Optional CIDR for the Kubernetes API server (e.g. "10.0.0.1/32"), used to restrict
+  ## the "Allow Kubernetes API server" egress rule on every component to that destination
+  ## specifically. Kubernetes NetworkPolicy has no generic pod/namespace selector for the
+  ## API server (it typically runs outside the pod network), so without this set, the
+  ## egress rule is port-only — it allows HTTPS egress to ANY destination on 443/6443,
+  ## not just the API server. Find your API server's CIDR with:
+  ##   kubectl get endpoints kubernetes -n default -o jsonpath='{.subsets[0].addresses[*].ip}'
+  kubeApiServerCIDR: ""
+  ## Additional ingress rules appended after the default allow-list
+  extraIngress: []
+  ## Additional egress rules appended after the default allow-list
+  extraEgress: []
+
+## PodDisruptionBudget
+pdb:
+  enabled: true
+  minAvailable: 1
+
+## HPA for the operator Deployment only (unusual but provided for completeness) —
+## metricsApiServer and admissionWebhooks are not scaled by this and have no HPA.
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  # targetMemoryUtilizationPercentage: 80
+
+## Prometheus metrics
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    labels: {}
+    interval: "30s"
+    scrapeTimeout: "10s"
+    port: metrics
+    path: /metrics
+  prometheusRule:
+    enabled: false
+    namespace: ""
+    labels: {}
+    additionalRules: []
+
+## Istio Ambient Mesh
+istio:
+  ambient:
+    enabled: false
+    ## Ports to exclude from ztunnel capture (e.g., health-check ports)
+    excludedPorts: []
+
+## SOC2 compliance defaults
+soc2:
+  auditLogging:
+    ## Structured JSON audit logging to stdout
+    enabled: true
+
+## DPDP compliance defaults
+dpdp:
+  ## When enabled, adds a dpdp.arieotech.com/data-residency-region pod annotation
+  ## for your policy enforcement layer (OPA/Gatekeeper) to key off of. KEDA itself
+  ## does not process PII, so there is no masking toggle to wire up here.
+  dataResidency:
+    enabled: false
+    region: ""
+
+extraVolumes: []
+extraVolumeMounts: []
+initContainers: []
+sidecars: []
+
+## Create arbitrary Secrets in the same namespace alongside the chart.
+## Useful for TriggerAuthentication credentials (Redis passwords, RabbitMQ creds, etc.).
+secrets: {}
+# redis-trigger-auth:
+#   stringData:
+#     password: "changeme"
+# rabbitmq-trigger-auth:
+#   type: Opaque
+#   stringData:
+#     connectionString: "amqp://user:pass@rabbitmq:5672/vhost"

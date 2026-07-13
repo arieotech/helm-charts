@@ -1,0 +1,199 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keda.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keda.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  replicas: {{ .Values.operator.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "keda.operatorSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "keda.operatorSelectorLabels" . | nindent 8 }}
+        {{- include "arieotech.istioAmbientLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- include "keda.podAnnotations" . | nindent 6 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "keda.operatorServiceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "arieotech.podSecurityContext" . | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: keda-operator
+          image: {{ include "keda.componentImage" .Values.operator.image | quote }}
+          imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+          command:
+            - /keda
+          args:
+            - --leader-elect
+            - --zap-log-level={{ .Values.operator.logLevel }}
+            - --zap-encoder={{ .Values.operator.logEncoder }}
+            - --zap-time-encoding={{ .Values.operator.logTimeFormat }}
+            ## Required — without this, the operator and the Metrics API Server both
+            ## crash on startup trying to read a client/server TLS cert for their
+            ## mutual TLS gRPC channel (port 9666) that nothing ever provisions
+            ## (pkg/certificates/certificate_manager.go in kedacore/keda). This makes
+            ## the operator self-generate a CA + cert bundle via
+            ## open-policy-agent/cert-controller, store it in
+            ## <fullname>-certs (mounted by the Metrics API Server and, if enabled,
+            ## Admission Webhooks), and auto-patch the caBundle onto both the
+            ## ValidatingWebhookConfiguration and the APIService. Service/webhook names
+            ## below are passed explicitly since the binary's own defaults
+            ## (keda-operator, keda-metrics-apiserver, etc.) only happen to match this
+            ## chart's actual resource names when the release is named "keda".
+            - --enable-cert-rotation=true
+            - --cert-secret-name={{ include "keda.fullname" . }}-certs
+            - --operator-service-name={{ include "keda.fullname" . }}-operator
+            - --metrics-server-service-name={{ include "keda.fullname" . }}-metrics-apiserver
+            - --webhooks-service-name={{ include "keda.fullname" . }}-admission-webhooks
+            - --validating-webhook-name={{ include "keda.fullname" . }}-admission
+            {{- if not .Values.metrics.enabled }}
+            ## Real flag for disabling Prometheus metrics (default true). The chart
+            ## previously (wrongly) pointed --metrics-bind-address at :9666 — which
+            ## collides with --metrics-service-bind-address's own default of :9666
+            ## (the gRPC channel metrics-apiserver uses to resolve external metrics,
+            ## unrelated to Prometheus and required regardless of this setting) —
+            ## causing a bind: address already in use crash whenever metrics.enabled
+            ## was true. Prometheus's own real default bind address is :8080.
+            - --enable-prometheus-metrics=false
+            {{- end }}
+          env:
+            - name: KEDA_HTTP_DEFAULT_TIMEOUT
+              value: "3000"
+            - name: KEDA_HTTP_MIN_TLS_VERSION
+              value: "TLS12"
+            ## Required — the operator calls os.LookupEnv("WATCH_NAMESPACE") directly
+            ## (pkg/util.GetWatchNamespaces in kedacore/keda) and exits fatally if the
+            ## var isn't present at all, even set to "". There is no --watch-namespace
+            ## CLI flag; empty string means cluster-wide (Arieotech fix for upstream #5943
+            ## is this env var, not a flag).
+            - name: WATCH_NAMESPACE
+              value: {{ .Values.operator.watchNamespace | quote }}
+            ## Pod name used for leader election
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- if .Values.soc2.auditLogging.enabled }}
+            - name: KEDA_OPERATOR_LOG_FORMAT
+              value: "json"
+            {{- end }}
+            {{- with .Values.operator.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            ## gRPC channel the Metrics API Server uses to resolve external metrics —
+            ## the binary's own real default for --metrics-service-bind-address, always
+            ## needed regardless of metrics.enabled (it is not a Prometheus concern).
+            - name: grpc-metrics
+              containerPort: 9666
+              protocol: TCP
+            ## --health-probe-bind-address's real default; the chart previously didn't
+            ## set this flag but pointed probes at :8080, which doesn't match the
+            ## binary's actual default of :8081.
+            - name: health
+              containerPort: 8081
+              protocol: TCP
+            {{- if .Values.metrics.enabled }}
+            ## --metrics-bind-address's real default (Prometheus).
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 25
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            {{- include "arieotech.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.operator.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            ## Writable: the cert rotator (see --enable-cert-rotation above) writes
+            ## its generated cert files here, in addition to the Secret it manages.
+            - name: certs
+              mountPath: /certs
+            {{- include "arieotech.serviceAccountTokenVolumeMount" . | nindent 12 }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- with .Values.sidecars }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: certs
+          emptyDir: {}
+        {{- include "arieotech.serviceAccountTokenVolume" . | nindent 8 }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- else }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "keda.operatorSelectorLabels" . | nindent 20 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- range . }}
+        - {{ toYaml . | nindent 10 | trim }}
+          labelSelector:
+            matchLabels:
+              {{- include "keda.operatorSelectorLabels" $ | nindent 14 }}
+        {{- end }}
+      {{- end }}

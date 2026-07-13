@@ -28,7 +28,11 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
         with:
-          version: v3.16.0
+          # Bumped from v3.16.0 for general currency. Was previously required for
+          # --take-ownership (Helm 3.17+); that flag is no longer used here — see the
+          # ct install --excluded-charts comment below for how the keda-crds/keda CRD
+          # ownership conflict is actually handled now.
+          version: v3.21.2
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -82,4 +86,12 @@ jobs:
 
       - name: Run chart-testing (install)
         if: steps.list-changed.outputs.changed == 'true'
-        run: ct install --config .ct/ct.yaml
+        ## keda-crds is excluded from install (but not lint) here only: bootstrap.sh
+        ## pre-applies its rendered CRDs via kubectl so the keda chart has them
+        ## available to install-test (ct processes charts in a non-deterministic
+        ## order, so keda-crds's own ct-install can't be relied on to run first).
+        ## ct's helm install would then fail trying to adopt those already-existing,
+        ## Helm-unowned CRDs — see the removed --take-ownership attempt in git history,
+        ## which fixed this but broke every chart's `helm uninstall` step instead,
+        ## since ct applies helm-extra-args uniformly to install/upgrade/uninstall.
+        run: ct install --config .ct/ct.yaml --excluded-charts arieotech-lib,keda-crds
