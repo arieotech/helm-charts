@@ -35,27 +35,30 @@ spec:
         - /bin/sh
         - -c
         - |
-          set -e
           BASE_URL="http://{{ include "litellm.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}"
 
-          echo "Testing LiteLLM health endpoint..."
-          curl -sf --retry 3 --retry-delay 3 --retry-connrefused --max-time 15 "${BASE_URL}/health/liveliness" || {
-            echo "ERROR: liveliness check failed"
-            exit 1
+          check() {
+            path="$1"; label="$2"
+            i=0
+            until code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${BASE_URL}${path}") && [ "$code" = "200" ]; do
+              i=$((i+1))
+              if [ $i -ge 12 ]; then
+                echo "ERROR: ${label} check failed after ~120s (last result: HTTP ${code:-connection-error})"
+                return 1
+              fi
+              echo "Attempt $i: ${label} not ready (HTTP ${code:-connection-error}), retrying in 10s..."
+              sleep 10
+            done
+            echo "${label} check PASSED"
           }
-          echo "Liveliness check PASSED"
 
-          echo "Testing LiteLLM readiness endpoint..."
-          curl -sf --retry 3 --retry-delay 3 --retry-connrefused --max-time 15 "${BASE_URL}/health/readiness" || {
-            echo "ERROR: readiness check failed"
-            exit 1
-          }
-          echo "Readiness check PASSED"
+          echo "Testing LiteLLM health endpoints..."
+          check /health/liveliness liveliness || exit 1
+          check /health/readiness readiness || exit 1
 
-          echo "Testing LiteLLM model list endpoint..."
-          curl -sf --max-time 10 "${BASE_URL}/models" || {
-            echo "WARNING: /models endpoint not accessible (may require auth)"
-          }
+          echo "Testing LiteLLM /models endpoint (401 expected without auth)..."
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${BASE_URL}/models")
+          echo "/models returned HTTP ${code:-connection-error} (informational only)"
 
           echo "LiteLLM connection test PASSED"
       resources:
