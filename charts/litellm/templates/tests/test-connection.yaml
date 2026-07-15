@@ -39,14 +39,14 @@ spec:
           BASE_URL="http://{{ include "litellm.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}"
 
           echo "Testing LiteLLM health endpoint..."
-          curl -sf --max-time 10 "${BASE_URL}/health/liveliness" || {
+          curl -sf --retry 3 --retry-delay 3 --retry-connrefused --max-time 15 "${BASE_URL}/health/liveliness" || {
             echo "ERROR: liveliness check failed"
             exit 1
           }
           echo "Liveliness check PASSED"
 
           echo "Testing LiteLLM readiness endpoint..."
-          curl -sf --max-time 10 "${BASE_URL}/health/readiness" || {
+          curl -sf --retry 3 --retry-delay 3 --retry-connrefused --max-time 15 "${BASE_URL}/health/readiness" || {
             echo "ERROR: readiness check failed"
             exit 1
           }

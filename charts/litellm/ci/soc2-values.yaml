@@ -13,8 +13,6 @@ config:
     store_model_in_db: false
   router_settings:
     routing_strategy: simple-shuffle
-    redis_host: ""
-    redis_port: 6379
   litellm_settings:
     drop_params: true
 

@@ -47,11 +47,13 @@ config:
     ## Store model config in DB (enables dynamic model management)
     store_model_in_db: false
 
-  ## Router settings — load balancing strategy across providers
+  ## Router settings — load balancing strategy across providers.
+  ## simple-shuffle is the safe default (no external dependencies).
+  ## For usage-based-routing-v2 (recommended for multi-replica production),
+  ## enable the redis section below — the chart injects redis_host/redis_port
+  ## into router_settings automatically. Do NOT set redis keys here manually.
   router_settings:
-    routing_strategy: usage-based-routing-v2
-    redis_host: ""
-    redis_port: 6379
+    routing_strategy: simple-shuffle
 
   ## Litellm-level settings
   litellm_settings:
