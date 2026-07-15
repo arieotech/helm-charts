@@ -565,4 +565,56 @@ entries:
     urls:
     - https://github.com/arieotech/helm-charts/releases/download/keycloak-0.2.0/keycloak-0.2.0.tgz
     version: 0.2.0
-generated: "2026-07-13T06:34:36.506980558Z"
+  litellm:
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: >
+            Initial release — production-grade LiteLLM 1.92.0 AI gateway with PSA
+            restricted-mode, NetworkPolicy, SOC2 structured JSON audit logging,
+            DPDP PII-stripping defaults, and Istio Ambient support.
+      artifacthub.io/images: |
+        - name: litellm
+          image: ghcr.io/berriai/litellm:v1.92.0
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: LiteLLM proxy documentation
+          url: https://docs.litellm.ai/docs/proxy/deploy
+        - name: Arieotech chart standards
+          url: https://github.com/arieotech/helm-charts/blob/main/docs/chart-standards.md
+      artifacthub.io/prerelease: "false"
+    apiVersion: v2
+    appVersion: 1.92.0
+    created: "2026-07-15T13:56:41.749247833Z"
+    dependencies:
+    - name: arieotech-lib
+      repository: file://../arieotech-lib
+      version: 0.2.0
+    description: 'Production-grade LiteLLM AI gateway. Unified proxy for OpenAI, Anthropic,
+      Bedrock, and 100+ LLM providers. PSA restricted-mode, NetworkPolicy, JSON Schema,
+      SOC2 structured audit logging, DPDP PII-stripping defaults, Istio Ambient support. '
+    digest: d70796d6920493f82f42f0d6a2083c6109ba19c822172225c062aa139c07a378
+    home: https://litellm.ai
+    keywords:
+    - litellm
+    - ai
+    - llm
+    - gateway
+    - openai
+    - anthropic
+    - bedrock
+    - mlops
+    - dpdp
+    maintainers:
+    - email: helm@arieotech.com
+      name: Arieotech
+      url: https://arieotech.com
+    name: litellm
+    sources:
+    - https://github.com/arieotech/helm-charts/tree/main/charts/litellm
+    - https://github.com/BerriAI/litellm
+    type: application
+    urls:
+    - https://github.com/arieotech/helm-charts/releases/download/litellm-0.1.0/litellm-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-07-15T13:56:41.749271458Z"
