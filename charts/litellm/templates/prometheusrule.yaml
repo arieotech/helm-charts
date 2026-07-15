@@ -1,0 +1,78 @@
+{{- if and .Values.metrics.enabled .Values.metrics.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "litellm.fullname" . }}
+  namespace: {{ default .Release.Namespace .Values.metrics.prometheusRule.namespace }}
+  labels:
+    {{- include "litellm.labels" . | nindent 4 }}
+    {{- with .Values.metrics.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: litellm.rules
+      interval: 30s
+      rules:
+        ## Alert when LiteLLM deployment has no ready replicas
+        - alert: LiteLLMDown
+          expr: |
+            kube_deployment_status_replicas_ready{deployment="{{ include "litellm.fullname" . }}", namespace="{{ .Release.Namespace }}"} == 0
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "LiteLLM AI gateway has no ready replicas"
+            description: >
+              LiteLLM deployment {{ include "litellm.fullname" . }} in namespace {{ .Release.Namespace }}
+              has 0 ready replicas. AI gateway is unavailable.
+            runbook_url: "https://github.com/arieotech/helm-charts/blob/main/docs/runbooks/litellm-down.md"
+
+        ## Alert on high error rate from LLM providers
+        - alert: LiteLLMHighErrorRate
+          expr: |
+            (
+              rate(litellm_requests_total{status=~"5.."}[5m])
+              /
+              rate(litellm_requests_total[5m])
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "LiteLLM is experiencing a high error rate"
+            description: >
+              LiteLLM error rate is above 5% over the last 5 minutes.
+              This may indicate provider outages or configuration issues.
+            runbook_url: "https://github.com/arieotech/helm-charts/blob/main/docs/runbooks/litellm-errors.md"
+
+        ## Alert on high response latency
+        - alert: LiteLLMHighLatency
+          expr: |
+            histogram_quantile(0.99, rate(litellm_request_duration_seconds_bucket[5m])) > 30
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "LiteLLM p99 latency is above 30 seconds"
+            description: >
+              LiteLLM p99 response latency is above 30s for the last 5 minutes.
+              Check provider health and network egress.
+
+        ## Alert when token budget is approaching exhaustion (if tracked)
+        - alert: LiteLLMHighTokenUsage
+          expr: |
+            rate(litellm_tokens_total[1h]) > 1000000
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "LiteLLM token usage is unusually high"
+            description: >
+              LiteLLM is processing over 1M tokens/hour. Validate for runaway
+              consumers or prompt injection attempts.
+
+        {{- with .Values.metrics.prometheusRule.additionalRules }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

@@ -1,0 +1,24 @@
+## LiteLLM ci/istio-ambient-values.yaml
+## Istio Ambient Mesh configuration.
+
+replicaCount: 1
+
+masterKey:
+  value: "sk-test-istio-key-do-not-use-in-production"
+
+istio:
+  ambient:
+    enabled: true
+    ## Exclude no ports — Istio Ambient handles all traffic via ztunnel
+    excludedPorts: []
+
+pdb:
+  enabled: false
+
+networkPolicy:
+  ## Disable NetworkPolicy when using Istio Ambient for L4 policy
+  enabled: false
+
+metrics:
+  serviceMonitor:
+    enabled: false

@@ -1,0 +1,66 @@
+LiteLLM {{ .Chart.AppVersion }} has been deployed to namespace {{ .Release.Namespace }}.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Access the LiteLLM API:
+
+  kubectl port-forward svc/{{ include "litellm.fullname" . }} {{ .Values.service.port }} -n {{ .Release.Namespace }}
+  curl http://localhost:{{ .Values.service.port }}/health
+
+API endpoint: http://{{ include "litellm.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+External endpoint: https://{{ .host }}
+{{- end }}
+{{- end }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MASTER KEY:
+{{- if .Values.masterKey.existingSecret }}
+  Using existing Secret: {{ .Values.masterKey.existingSecret }}
+{{- else if .Values.masterKey.value }}
+  WARNING: Master key set from values. Use masterKey.existingSecret in production!
+{{- else }}
+  WARNING: No master key configured. LiteLLM will start without authentication.
+  Set masterKey.value or masterKey.existingSecret.
+{{- end }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROVIDER API KEYS:
+  Pass provider keys via providerSecrets.existingSecret or extraEnv:
+
+  kubectl create secret generic llm-provider-keys \
+    --from-literal=OPENAI_API_KEY=sk-... \
+    --from-literal=ANTHROPIC_API_KEY=sk-ant-... \
+    -n {{ .Release.Namespace }}
+
+  Then set:
+    providerSecrets.existingSecret: llm-provider-keys
+    providerSecrets.keys: [OPENAI_API_KEY, ANTHROPIC_API_KEY]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{{- if .Values.dpdp.piiMasking.enabled }}
+DPDP PII MASKING: ENABLED
+  LiteLLM is configured to redact PII from logs and exceptions.
+  Fields masked: {{ .Values.dpdp.piiMasking.scrubFields | join ", " }}
+{{- end }}
+
+{{- if .Values.metrics.enabled }}
+
+METRICS: Enabled on port {{ .Values.service.port }} at /metrics
+{{- if not .Values.metrics.serviceMonitor.enabled }}
+  Enable ServiceMonitor for Prometheus discovery:
+    --set metrics.serviceMonitor.enabled=true
+{{- end }}
+{{- end }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Verify deployment:
+
+  kubectl rollout status deployment/{{ include "litellm.fullname" . }} -n {{ .Release.Namespace }}
+  kubectl logs -l app.kubernetes.io/name={{ include "litellm.name" . }} -n {{ .Release.Namespace }} --tail=20

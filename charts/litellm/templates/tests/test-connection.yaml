@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "litellm.fullname" . }}-test-connection
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "litellm.labels" . | nindent 4 }}
+    helm.sh/chart-test: "true"
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    runAsGroup: 65534
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: test-health
+      image: curlimages/curl:8.7.1
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 65534
+        capabilities:
+          drop:
+            - ALL
+        seccompProfile:
+          type: RuntimeDefault
+      command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          BASE_URL="http://{{ include "litellm.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}"
+
+          echo "Testing LiteLLM health endpoint..."
+          curl -sf --max-time 10 "${BASE_URL}/health/liveliness" || {
+            echo "ERROR: liveliness check failed"
+            exit 1
+          }
+          echo "Liveliness check PASSED"
+
+          echo "Testing LiteLLM readiness endpoint..."
+          curl -sf --max-time 10 "${BASE_URL}/health/readiness" || {
+            echo "ERROR: readiness check failed"
+            exit 1
+          }
+          echo "Readiness check PASSED"
+
+          echo "Testing LiteLLM model list endpoint..."
+          curl -sf --max-time 10 "${BASE_URL}/models" || {
+            echo "WARNING: /models endpoint not accessible (may require auth)"
+          }
+
+          echo "LiteLLM connection test PASSED"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          memory: 32Mi

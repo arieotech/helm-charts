@@ -1,0 +1,33 @@
+## LiteLLM ci/ha-values.yaml
+## High-availability configuration with NetworkPolicy and PDB.
+
+replicaCount: 2
+
+masterKey:
+  value: "sk-test-ha-key-do-not-use-in-production"
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+
+autoscaling:
+  enabled: false
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+  prometheusRule:
+    enabled: false
+
+soc2:
+  auditLogging:
+    enabled: true
+  enforceTLS: true
+
+dpdp:
+  piiMasking:
+    enabled: true
