@@ -1,0 +1,164 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "litellm.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "litellm.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "litellm.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "litellm.selectorLabels" . | nindent 8 }}
+        {{- include "arieotech.istioAmbientLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- include "arieotech.istioExcludedPorts" . | nindent 8 }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "litellm.serviceAccountName" . }}
+      securityContext:
+        {{- include "arieotech.podSecurityContext" . | nindent 8 }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      containers:
+        - name: litellm
+          image: {{ include "arieotech.image" .Values.image | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- include "arieotech.containerSecurityContext" . | nindent 12 }}
+          args:
+            - --config
+            - /etc/litellm/config.yaml
+            - --port
+            - {{ .Values.service.port | quote }}
+          env:
+            ## Master key from Secret
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "litellm.masterKeySecretName" . }}
+                  key: {{ .Values.masterKey.existingSecretKey | default "master-key" }}
+            ## Database URL
+            {{- if .Values.database.enabled }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "litellm.databaseSecretName" . }}
+                  key: {{ .Values.database.existingSecretKey | default "database-url" }}
+            {{- end }}
+            ## Redis
+            {{- if .Values.redis.enabled }}
+            - name: REDIS_HOST
+              value: {{ .Values.redis.host | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.redis.port | quote }}
+            {{- if or .Values.redis.password .Values.redis.existingSecret }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "litellm.redisSecretName" . }}
+                  key: {{ .Values.redis.existingSecretKey | default "redis-password" }}
+            {{- end }}
+            {{- end }}
+            ## DPDP PII masking
+            {{- if .Values.dpdp.piiMasking.enabled }}
+            - name: LITELLM_REDACT_USER_API_KEY_INFO
+              value: "True"
+            {{- end }}
+            ## SOC2: structured JSON audit logs to stdout.
+            ## Deliberately NOT --detailed_debug: that logs raw request/response
+            ## bodies (PII leak, contradicts dpdp.piiMasking) and is a perf hit.
+            {{- if .Values.soc2.auditLogging.enabled }}
+            - name: LITELLM_LOG
+              value: "INFO"
+            - name: JSON_LOGS
+              value: "True"
+            {{- end }}
+            ## Provider API keys from existing secret
+            {{- if and .Values.providerSecrets.existingSecret .Values.providerSecrets.keys }}
+            {{- range .Values.providerSecrets.keys }}
+            - name: {{ . }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.providerSecrets.existingSecret }}
+                  key: {{ . }}
+            {{- end }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+            - name: ui
+              containerPort: {{ .Values.service.uiPort }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/litellm
+              readOnly: true
+            ## Writable tmp for LiteLLM internal scratch
+            - name: tmp
+              mountPath: /tmp
+            ## Cache directory
+            - name: cache
+              mountPath: /.cache
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "litellm.configMapName" . }}
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- else }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "litellm.selectorLabels" . | nindent 20 }}
+      {{- end }}

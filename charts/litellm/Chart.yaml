@@ -1,0 +1,48 @@
+apiVersion: v2
+name: litellm
+description: >
+  Production-grade LiteLLM AI gateway. Unified proxy for OpenAI, Anthropic, Bedrock,
+  and 100+ LLM providers. PSA restricted-mode, NetworkPolicy, JSON Schema,
+  SOC2 structured audit logging, DPDP PII-stripping defaults, Istio Ambient support.
+type: application
+version: 0.1.0
+appVersion: "1.92.0"
+keywords:
+  - litellm
+  - ai
+  - llm
+  - gateway
+  - openai
+  - anthropic
+  - bedrock
+  - mlops
+  - dpdp
+home: https://litellm.ai
+sources:
+  - https://github.com/arieotech/helm-charts/tree/main/charts/litellm
+  - https://github.com/BerriAI/litellm
+maintainers:
+  - name: Arieotech
+    email: helm@arieotech.com
+    url: https://arieotech.com
+dependencies:
+  - name: arieotech-lib
+    version: "0.2.0"
+    repository: "file://../arieotech-lib"
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/images: |
+    - name: litellm
+      image: ghcr.io/berriai/litellm:v1.92.0
+  artifacthub.io/changes: |
+    - kind: added
+      description: >
+        Initial release — production-grade LiteLLM 1.92.0 AI gateway with PSA
+        restricted-mode, NetworkPolicy, SOC2 structured JSON audit logging,
+        DPDP PII-stripping defaults, and Istio Ambient support.
+  artifacthub.io/links: |
+    - name: LiteLLM proxy documentation
+      url: https://docs.litellm.ai/docs/proxy/deploy
+    - name: Arieotech chart standards
+      url: https://github.com/arieotech/helm-charts/blob/main/docs/chart-standards.md

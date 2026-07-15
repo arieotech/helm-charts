@@ -1,0 +1,286 @@
+## Arieotech LiteLLM — Production Defaults
+## All values are overridable. See values.schema.json for validation rules.
+
+## @section Global
+global:
+  ## Image pull secrets applied to all pods
+  imagePullSecrets: []
+
+## @section Image
+image:
+  registry: ghcr.io
+  repository: berriai/litellm
+  tag: "v1.92.0"
+  ## Set in production for immutability: sha256:<digest> (takes precedence over tag)
+  digest: ""
+  pullPolicy: IfNotPresent
+
+## @section Replica count
+## For production: 2+ replicas. Single-replica disables PDB.
+replicaCount: 2
+
+## @section Name overrides
+nameOverride: ""
+fullnameOverride: ""
+
+## @section LiteLLM configuration
+## Rendered into /etc/litellm/config.yaml inside the pod.
+config:
+  ## Model list — define your LLM provider routes here.
+  ## See: https://docs.litellm.ai/docs/proxy/configs
+  model_list:
+    - model_name: gpt-4o
+      litellm_params:
+        model: openai/gpt-4o
+        api_key: "os.environ/OPENAI_API_KEY"
+    - model_name: claude-sonnet-4-5
+      litellm_params:
+        model: anthropic/claude-sonnet-4-5
+        api_key: "os.environ/ANTHROPIC_API_KEY"
+
+  ## General gateway settings
+  general_settings:
+    ## Master key for admin operations — override via masterKey.value or masterKey.existingSecret
+    master_key: "os.environ/LITELLM_MASTER_KEY"
+    ## Database URL for usage tracking — override with database.connectionString
+    ## database_url: "os.environ/DATABASE_URL"
+    ## Store model config in DB (enables dynamic model management)
+    store_model_in_db: false
+
+  ## Router settings — load balancing strategy across providers.
+  ## simple-shuffle is the safe default (no external dependencies).
+  ## For usage-based-routing-v2 (recommended for multi-replica production),
+  ## enable the redis section below — the chart injects redis_host/redis_port
+  ## into router_settings automatically. Do NOT set redis keys here manually.
+  router_settings:
+    routing_strategy: simple-shuffle
+
+  ## Litellm-level settings
+  litellm_settings:
+    ## Drop unmapped parameters (required for multi-provider compat)
+    drop_params: true
+    ## Set request/response timeout
+    request_timeout: 600
+    ## Number of retries on provider failure
+    num_retries: 2
+    ## DPDP: Strip PII from logs when enabled (see dpdp section)
+    ## Controlled by the dpdp.piiMasking.enabled flag below
+
+## @section Master key
+## The LiteLLM master key authorizes admin operations (/key/generate, /model/add, etc.)
+## NEVER set master_key plaintext in production — use existingSecret.
+masterKey:
+  ## Plaintext value (dev only)
+  value: ""
+  ## Use an existing Kubernetes Secret
+  existingSecret: ""
+  existingSecretKey: master-key
+
+## @section LLM Provider API keys
+## Store API keys in an existing Secret and reference it here.
+## The Secret must contain keys matching the env vars used in config.model_list.
+providerSecrets:
+  ## Name of an existing Secret containing provider API keys
+  existingSecret: ""
+  ## Keys to mount as env vars from the Secret
+  ## Example: OPENAI_API_KEY, ANTHROPIC_API_KEY, AWS_ACCESS_KEY_ID, etc.
+  keys: []
+  # - OPENAI_API_KEY
+  # - ANTHROPIC_API_KEY
+
+## @section Service
+service:
+  type: ClusterIP
+  ## Main API port
+  port: 4000
+  ## UI / Admin port
+  uiPort: 4001
+  annotations: {}
+
+## @section Ingress
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+  hosts:
+    - host: litellm.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: litellm-tls
+  #   hosts:
+  #     - litellm.example.com
+
+## @section Redis
+## Redis is required for usage-based routing and caching across replicas.
+## Disabled by default — provide an external Redis instance for production.
+redis:
+  enabled: false
+  host: ""
+  port: 6379
+  ## Password for Redis AUTH
+  password: ""
+  existingSecret: ""
+  existingSecretKey: redis-password
+
+## @section Database
+## PostgreSQL for usage logging, user/key management, and spend tracking.
+## Disabled by default — provide an external PostgreSQL for production.
+database:
+  enabled: false
+  ## Full DSN: postgresql://user:pass@host:5432/litellm
+  connectionString: ""
+  existingSecret: ""
+  existingSecretKey: database-url
+
+## @section Resources
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    memory: 2Gi
+
+## @section Autoscaling
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+## @section PodDisruptionBudget
+pdb:
+  enabled: true
+  minAvailable: 1
+
+## @section ServiceAccount
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+## @section Pod security context (PSA restricted)
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## @section Container security context (PSA restricted)
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+## @section NetworkPolicy
+## Deny-all by default with explicit allow-list.
+networkPolicy:
+  enabled: true
+  extraIngress: []
+  extraEgress: []
+
+## @section Probes
+livenessProbe:
+  httpGet:
+    path: /health/liveliness
+    port: 4000
+  initialDelaySeconds: 30
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 4
+
+readinessProbe:
+  httpGet:
+    path: /health/readiness
+    port: 4000
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+## @section Prometheus metrics
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    labels: {}
+    interval: "30s"
+    scrapeTimeout: "10s"
+    port: http
+    path: /metrics
+    relabelings: []
+    metricRelabelings: []
+  prometheusRule:
+    enabled: false
+    namespace: ""
+    labels: {}
+    additionalRules: []
+
+## @section Istio Ambient Mesh
+istio:
+  ambient:
+    enabled: false
+    excludedPorts: []
+
+## @section SOC2 compliance
+soc2:
+  ## Emit structured JSON access logs to stdout
+  auditLogging:
+    enabled: true
+  enforceTLS: true
+
+## @section DPDP compliance
+## DPDP (India Digital Personal Data Protection Act) — PII stripping for AI workloads
+dpdp:
+  piiMasking:
+    ## When enabled, adds LITELLM_REDACT_USER_API_KEY_INFO=True and turns on
+    ## guardrails to strip PII from prompts/responses before logging
+    enabled: true
+    ## Fields to scrub from logs: email, phone, ip_address, etc.
+    scrubFields:
+      - email
+      - phone_number
+      - ip_address
+      - credit_card_number
+  dataResidency:
+    enabled: false
+    region: ""
+
+## @section Pod annotations and labels
+podAnnotations: {}
+podLabels: {}
+
+## @section Node scheduling
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+## @section Priority class
+priorityClassName: ""
+
+## @section Extra environment variables
+## Pass arbitrary env vars (e.g., provider API keys from external secrets operators)
+extraEnv: []
+# - name: OPENAI_API_KEY
+#   valueFrom:
+#     secretKeyRef:
+#       name: llm-provider-keys
+#       key: openai-api-key
+
+## @section Extra volumes and volume mounts
+extraVolumes: []
+extraVolumeMounts: []

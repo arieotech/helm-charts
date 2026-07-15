@@ -1,0 +1,48 @@
+## LiteLLM ci/default-values.yaml
+## Minimal working install for `ct install` against a kind cluster.
+
+replicaCount: 1
+
+## Minimal model list for CI — no real API keys
+config:
+  model_list:
+    - model_name: test-model
+      litellm_params:
+        model: openai/gpt-4o-mini
+        api_key: "os.environ/OPENAI_API_KEY"
+  general_settings:
+    master_key: "os.environ/LITELLM_MASTER_KEY"
+    store_model_in_db: false
+  router_settings:
+    routing_strategy: simple-shuffle
+  litellm_settings:
+    drop_params: true
+    request_timeout: 600
+    num_retries: 2
+
+## Use a dummy master key for CI (never in production)
+masterKey:
+  value: "sk-test-ci-key-do-not-use-in-production"
+
+pdb:
+  enabled: false
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+  prometheusRule:
+    enabled: false
+
+networkPolicy:
+  enabled: false
+
+redis:
+  enabled: false
+
+database:
+  enabled: false
+
+dpdp:
+  piiMasking:
+    enabled: false
