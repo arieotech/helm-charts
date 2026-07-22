@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "otel-collector.configMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "otel-collector.labels" . | nindent 4 }}
+  annotations:
+    ## ConfigMap checksum is injected into the pod annotations so that changes
+    ## to the collector config trigger a rolling restart automatically.
+    ## This annotation is referenced in the Deployment/DaemonSet pod template.
+data:
+  config.yaml: |
+    {{- toYaml .Values.config | nindent 4 }}

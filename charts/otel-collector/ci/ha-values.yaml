@@ -1,0 +1,60 @@
+## HA configuration — 3 replicas with PDB and HPA
+## Use for production central gateway deployments.
+
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+config:
+  processors:
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    batch:
+      send_batch_size: 10000
+      timeout: 10s
+  extensions:
+  service:
+    extensions: [health_check]
+    telemetry:
+      logs:
+        level: "info"
+        encoding: "json"
+      metrics:
+        readers:
+          - pull:
+              exporter:
+                prometheus:
+                  host: "0.0.0.0"
+                  port: 8888
+
+pdb:
+  enabled: true
+  minAvailable: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
