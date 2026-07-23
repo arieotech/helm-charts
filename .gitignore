@@ -13,3 +13,6 @@ index.yaml
 # Local test artifacts
 /tmp/
 kubeconfig
+
+# Helm dependency build artifacts
+tmpcharts/

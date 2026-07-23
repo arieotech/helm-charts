@@ -1,0 +1,58 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "litellm.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "litellm.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "litellm.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    ## Allow inbound API requests on the main port
+    - ports:
+        - port: {{ .Values.service.port }}
+          protocol: TCP
+    ## Allow UI port (admin console)
+    - ports:
+        - port: {{ .Values.service.uiPort }}
+          protocol: TCP
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    ## Always allow DNS resolution
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    ## Allow outbound HTTPS to LLM provider APIs (OpenAI, Anthropic, Bedrock, etc.)
+    - ports:
+        - port: 443
+          protocol: TCP
+    ## Allow HTTP for providers that don't use HTTPS (local/private endpoints)
+    - ports:
+        - port: 80
+          protocol: TCP
+    ## Allow Redis if enabled
+    {{- if .Values.redis.enabled }}
+    - ports:
+        - port: {{ .Values.redis.port }}
+          protocol: TCP
+    {{- end }}
+    ## Allow PostgreSQL database if enabled
+    {{- if .Values.database.enabled }}
+    - ports:
+        - port: 5432
+          protocol: TCP
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
