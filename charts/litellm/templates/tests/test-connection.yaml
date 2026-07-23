@@ -3,8 +3,16 @@ kind: Pod
 metadata:
   name: {{ include "litellm.fullname" . }}-test-connection
   namespace: {{ .Release.Namespace }}
+  ## Deliberately NOT the shared chart labels: the selector labels
+  ## (app.kubernetes.io/name + instance) would make this test pod match the
+  ## workload's Service selector (becoming a broken endpoint) and the
+  ## NetworkPolicy podSelector (whose egress allow-list would drop the
+  ## test's own traffic to the LiteLLM ports).
   labels:
-    {{- include "litellm.labels" . | nindent 4 }}
+    helm.sh/chart: {{ include "litellm.chart" . }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/part-of: litellm
+    app.kubernetes.io/component: test
     helm.sh/chart-test: "true"
   annotations:
     "helm.sh/hook": test

@@ -3,6 +3,15 @@
 All notable changes to the LiteLLM Helm chart are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.1] — 2026-07-23
+
+### Fixed
+- Helm test pod no longer carries the workload selector labels
+  (`app.kubernetes.io/name` + `instance`). Those labels made it match the
+  Service selector (registering itself as a broken endpoint) and the
+  NetworkPolicy podSelector, whose egress allow-list dropped the test pod's
+  own traffic to port 4000 in NetworkPolicy-enabled installs.
+
 ## [0.1.0] — 2026-07-13
 
 ### Added
