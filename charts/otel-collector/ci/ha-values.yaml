@@ -21,6 +21,8 @@ config:
       send_batch_size: 10000
       timeout: 10s
   extensions:
+    health_check:
+      endpoint: "0.0.0.0:13133"
   service:
     extensions: [health_check]
     telemetry:
@@ -55,6 +57,9 @@ topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: kubernetes.io/hostname
     whenUnsatisfiable: DoNotSchedule
+    ## Exclude tainted (e.g. control-plane) nodes from skew domains,
+    ## otherwise they count with 0 pods and block scheduling entirely.
+    nodeTaintsPolicy: Honor
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: ScheduleAnyway

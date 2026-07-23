@@ -68,6 +68,10 @@ topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: kubernetes.io/hostname
     whenUnsatisfiable: DoNotSchedule
+    ## Honor taints when computing skew domains (k8s 1.26+). Without this,
+    ## tainted control-plane nodes count as 0-pod domains and make every
+    ## placement exceed maxSkew, leaving pods permanently Pending.
+    nodeTaintsPolicy: Honor
 
 ## -----------------------------------------------------------------------
 ## OTel Collector Pipeline Configuration
