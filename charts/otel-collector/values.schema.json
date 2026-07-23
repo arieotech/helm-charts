@@ -1,0 +1,547 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OtelCollector",
+  "description": "Arieotech production OpenTelemetry Collector chart values schema",
+  "type": "object",
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of replicas. Ignored when mode=daemonset."
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "deployment",
+        "daemonset"
+      ],
+      "description": "Workload type. Use 'deployment' for a central gateway, 'daemonset' for node agents."
+    },
+    "image": {
+      "type": "object",
+      "required": [
+        "registry",
+        "repository",
+        "tag"
+      ],
+      "properties": {
+        "registry": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Image registry hostname. Example: docker.io"
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Image repository. Example: otel/opentelemetry-collector-contrib"
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "not": {
+            "pattern": "^latest$"
+          },
+          "description": "Specific version tag. 'latest' is rejected \u2014 pin to a version or use digest."
+        },
+        "digest": {
+          "type": "string",
+          "description": "SHA256 digest. When set, overrides tag for immutable pinning."
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "annotations": {
+          "type": "object"
+        },
+        "automountServiceAccountToken": {
+          "type": "boolean"
+        }
+      }
+    },
+    "podSecurityContext": {
+      "type": "object",
+      "properties": {
+        "runAsNonRoot": {
+          "type": "boolean"
+        },
+        "runAsUser": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runAsGroup": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fsGroup": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "seccompProfile": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "RuntimeDefault",
+                "Localhost",
+                "Unconfined"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "securityContext": {
+      "type": "object",
+      "properties": {
+        "allowPrivilegeEscalation": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        },
+        "readOnlyRootFilesystem": {
+          "type": "boolean"
+        },
+        "runAsNonRoot": {
+          "type": "boolean"
+        },
+        "runAsUser": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "drop": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "required": [
+        "requests",
+        "limits"
+      ],
+      "properties": {
+        "requests": {
+          "type": "object",
+          "required": [
+            "cpu",
+            "memory"
+          ],
+          "properties": {
+            "cpu": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "string"
+            }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "required": [
+            "cpu",
+            "memory"
+          ],
+          "properties": {
+            "cpu": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "ports": {
+      "type": "object",
+      "properties": {
+        "otlp": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "containerPort": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "servicePort": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "protocol": {
+              "type": "string",
+              "enum": [
+                "TCP",
+                "UDP"
+              ]
+            }
+          }
+        },
+        "otlpHttp": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "containerPort": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "servicePort": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "protocol": {
+              "type": "string",
+              "enum": [
+                "TCP",
+                "UDP"
+              ]
+            }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "containerPort": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "servicePort": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "protocol": {
+              "type": "string",
+              "enum": [
+                "TCP",
+                "UDP"
+              ]
+            }
+          }
+        },
+        "healthCheck": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "containerPort": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "servicePort": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "protocol": {
+              "type": "string",
+              "enum": [
+                "TCP",
+                "UDP"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ClusterIP",
+            "NodePort",
+            "LoadBalancer"
+          ]
+        },
+        "annotations": {
+          "type": "object"
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "extraIngress": {
+          "type": "array"
+        },
+        "extraEgress": {
+          "type": "array"
+        }
+      }
+    },
+    "pdb": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "minAvailable": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "maxUnavailable": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        }
+      }
+    },
+    "autoscaling": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "Deployment"
+          ]
+        },
+        "minReplicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "targetCPUUtilizationPercentage": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "targetMemoryUtilizationPercentage": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "serviceMonitor": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "namespace": {
+              "type": "string"
+            },
+            "labels": {
+              "type": "object"
+            },
+            "interval": {
+              "type": "string"
+            },
+            "scrapeTimeout": {
+              "type": "string"
+            },
+            "port": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        },
+        "prometheusRule": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "namespace": {
+              "type": "string"
+            },
+            "labels": {
+              "type": "object"
+            },
+            "additionalRules": {
+              "type": "array"
+            }
+          }
+        }
+      }
+    },
+    "istio": {
+      "type": "object",
+      "properties": {
+        "ambient": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "excludedPorts": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    "soc2": {
+      "type": "object",
+      "properties": {
+        "auditLogging": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          }
+        },
+        "enforceTLS": {
+          "type": "boolean"
+        }
+      }
+    },
+    "dpdp": {
+      "type": "object",
+      "properties": {
+        "piiMasking": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          }
+        },
+        "dataResidency": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "region": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "description": "OpenTelemetry Collector pipeline configuration. Rendered as YAML into a ConfigMap."
+    },
+    "livenessProbe": {
+      "type": "object"
+    },
+    "readinessProbe": {
+      "type": "object"
+    },
+    "nodeSelector": {
+      "type": "object"
+    },
+    "tolerations": {
+      "type": "array"
+    },
+    "affinity": {
+      "type": "object"
+    },
+    "priorityClassName": {
+      "type": "string"
+    },
+    "podAnnotations": {
+      "type": "object"
+    },
+    "podLabels": {
+      "type": "object"
+    },
+    "extraVolumes": {
+      "type": "array"
+    },
+    "extraVolumeMounts": {
+      "type": "array"
+    },
+    "initContainers": {
+      "type": "array"
+    },
+    "sidecars": {
+      "type": "array"
+    },
+    "topologySpreadConstraints": {
+      "type": "array"
+    },
+    "global": {
+      "type": "object",
+      "description": "Global values shared across charts (imagePullSecrets, storageClass).",
+      "properties": {
+        "imagePullSecrets": {
+          "type": "array"
+        },
+        "storageClass": {
+          "type": "string"
+        }
+      }
+    },
+    "nameOverride": {
+      "type": "string",
+      "description": "Override the chart name."
+    },
+    "fullnameOverride": {
+      "type": "string",
+      "description": "Override the fully qualified release name."
+    },
+    "arieotech-lib": {
+      "type": "object",
+      "description": "Values passed to the arieotech-lib library chart dependency (injected by Helm)."
+    }
+  },
+  "additionalProperties": false
+}

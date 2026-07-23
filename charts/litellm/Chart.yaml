@@ -5,7 +5,7 @@ description: >
   and 100+ LLM providers. PSA restricted-mode, NetworkPolicy, JSON Schema,
   SOC2 structured audit logging, DPDP PII-stripping defaults, Istio Ambient support.
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "1.92.0"
 keywords:
   - litellm
@@ -36,11 +36,11 @@ annotations:
     - name: litellm
       image: ghcr.io/berriai/litellm:v1.92.0
   artifacthub.io/changes: |
-    - kind: added
+    - kind: fixed
       description: >
-        Initial release — production-grade LiteLLM 1.92.0 AI gateway with PSA
-        restricted-mode, NetworkPolicy, SOC2 structured JSON audit logging,
-        DPDP PII-stripping defaults, and Istio Ambient support.
+        Helm test pod no longer carries the workload selector labels, which made
+        it match the Service selector and the NetworkPolicy podSelector (whose
+        egress rules dropped the test's own traffic).
   artifacthub.io/links: |
     - name: LiteLLM proxy documentation
       url: https://docs.litellm.ai/docs/proxy/deploy

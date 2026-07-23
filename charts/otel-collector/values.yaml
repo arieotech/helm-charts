@@ -1,0 +1,275 @@
+## Arieotech OpenTelemetry Collector — Production Defaults
+## These values are optimized for production use. Read the README.md before deploying.
+
+global:
+  imagePullSecrets: []
+  storageClass: ""
+
+image:
+  registry: docker.io
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.154.0"
+  digest: ""
+  pullPolicy: IfNotPresent
+
+## mode controls whether the collector runs as a Deployment (central gateway)
+## or a DaemonSet (node-level agent). Default: deployment.
+## Valid values: deployment, daemonset
+mode: deployment
+
+replicaCount: 2
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
+  capabilities:
+    drop: [ALL]
+  seccompProfile:
+    type: RuntimeDefault
+
+podAnnotations: {}
+podLabels: {}
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+priorityClassName: ""
+
+## topologySpreadConstraints ensure pods spread across nodes for HA.
+## Only applies in Deployment mode; ignored for DaemonSet.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+    ## Honor taints when computing skew domains (k8s 1.26+). Without this,
+    ## tainted control-plane nodes count as 0-pod domains and make every
+    ## placement exceed maxSkew, leaving pods permanently Pending.
+    nodeTaintsPolicy: Honor
+
+## -----------------------------------------------------------------------
+## OTel Collector Pipeline Configuration
+## This section is rendered into a ConfigMap and mounted into the collector.
+## See: https://opentelemetry.io/docs/collector/configuration/
+## -----------------------------------------------------------------------
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+  processors:
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    batch:
+      send_batch_size: 10000
+      timeout: 10s
+
+  exporters:
+    ## Default pipelines use the debug exporter so a fresh install starts
+    ## cleanly with no external backend. For production, define your OTLP
+    ## exporter and switch the pipeline exporters below. An otlp exporter
+    ## with an empty endpoint fails collector config validation at startup —
+    ## never ship one disabled-by-emptiness. Example:
+    ##   otlp:
+    ##     endpoint: "https://signoz-otel-collector:4317"
+    debug:
+      verbosity: normal
+
+  ## NOTE: memory_ballast was removed from the collector (v0.129+).
+  ## Memory is governed by the memory_limiter processor; for GC pressure
+  ## set the GOMEMLIMIT env var (~80% of the container memory limit) via extraEnv.
+  extensions:
+    health_check:
+      endpoint: "0.0.0.0:13133"
+    pprof:
+      endpoint: "0.0.0.0:1777"
+
+  service:
+    extensions: [health_check]
+    telemetry:
+      logs:
+        level: "info"
+        ## SOC2: structured JSON logging
+        encoding: "json"
+      metrics:
+        ## service::telemetry::metrics::address was deprecated in v0.111.0;
+        ## the readers syntax below is the supported replacement.
+        readers:
+          - pull:
+              exporter:
+                prometheus:
+                  host: "0.0.0.0"
+                  port: 8888
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [debug]
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [debug]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [debug]
+
+## -----------------------------------------------------------------------
+## Port configuration
+## -----------------------------------------------------------------------
+ports:
+  otlp:
+    enabled: true
+    containerPort: 4317
+    servicePort: 4317
+    protocol: TCP
+  otlpHttp:
+    enabled: true
+    containerPort: 4318
+    servicePort: 4318
+    protocol: TCP
+  metrics:
+    ## Collector self-metrics (Prometheus format) on /metrics
+    enabled: true
+    containerPort: 8888
+    servicePort: 8888
+    protocol: TCP
+  healthCheck:
+    enabled: true
+    containerPort: 13133
+    servicePort: 13133
+    protocol: TCP
+
+service:
+  type: ClusterIP
+  annotations: {}
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: 13133
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+  successThreshold: 1
+  timeoutSeconds: 5
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 13133
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+  successThreshold: 1
+  timeoutSeconds: 5
+
+## -----------------------------------------------------------------------
+## Networking
+## -----------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  extraIngress: []
+  extraEgress: []
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+## HPA — only meaningful in Deployment mode
+autoscaling:
+  enabled: false
+  kind: Deployment
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+## -----------------------------------------------------------------------
+## Observability
+## -----------------------------------------------------------------------
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    labels: {}
+    interval: "30s"
+    scrapeTimeout: "10s"
+    port: metrics
+    path: /metrics
+  prometheusRule:
+    enabled: false
+    namespace: ""
+    labels: {}
+    additionalRules: []
+
+## -----------------------------------------------------------------------
+## Istio Ambient Mesh
+## -----------------------------------------------------------------------
+istio:
+  ambient:
+    enabled: false
+    ## Ports to exclude from ztunnel interception.
+    ## Health check port 13133 and metrics port 8888 should typically be excluded.
+    excludedPorts: []
+
+## -----------------------------------------------------------------------
+## SOC2 Compliance
+## -----------------------------------------------------------------------
+soc2:
+  auditLogging:
+    ## When enabled, forces JSON log encoding and INFO minimum log level.
+    enabled: true
+  enforceTLS: true
+
+## -----------------------------------------------------------------------
+## DPDP / Data Privacy
+## -----------------------------------------------------------------------
+dpdp:
+  piiMasking:
+    ## When enabled, add a transform processor to strip common PII fields.
+    ## Requires additional processor configuration in config.processors.
+    enabled: false
+  dataResidency:
+    enabled: false
+    region: ""
+
+## -----------------------------------------------------------------------
+## Extra manifests injection
+## -----------------------------------------------------------------------
+extraVolumes: []
+extraVolumeMounts: []
+initContainers: []
+sidecars: []

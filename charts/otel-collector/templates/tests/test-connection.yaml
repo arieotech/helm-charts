@@ -1,17 +1,17 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ include "litellm.fullname" . }}-test-connection
+  name: {{ printf "%s-test-connection" (include "otel-collector.fullname" .) }}
   namespace: {{ .Release.Namespace }}
   ## Deliberately NOT the shared chart labels: the selector labels
   ## (app.kubernetes.io/name + instance) would make this test pod match the
   ## workload's Service selector (becoming a broken endpoint) and the
   ## NetworkPolicy podSelector (whose egress allow-list would drop the
-  ## test's own traffic to the LiteLLM ports).
+  ## test's own traffic to the collector ports).
   labels:
-    helm.sh/chart: {{ include "litellm.chart" . }}
+    helm.sh/chart: {{ include "otel-collector.chart" . }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
-    app.kubernetes.io/part-of: litellm
+    app.kubernetes.io/part-of: otel-collector
     app.kubernetes.io/component: test
     helm.sh/chart-test: "true"
   annotations:
@@ -43,12 +43,12 @@ spec:
         - /bin/sh
         - -c
         - |
-          BASE_URL="http://{{ include "litellm.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}"
+          BASE_URL="http://{{ include "otel-collector.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
 
           check() {
-            path="$1"; label="$2"
+            url="$1"; label="$2"
             i=0
-            until code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${BASE_URL}${path}") && [ "$code" = "200" ]; do
+            until code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$url") && [ "$code" = "200" ]; do
               i=$((i+1))
               if [ $i -ge 12 ]; then
                 echo "ERROR: ${label} check failed after ~120s (last result: HTTP ${code:-connection-error})"
@@ -60,15 +60,21 @@ spec:
             echo "${label} check PASSED"
           }
 
-          echo "Testing LiteLLM health endpoints..."
-          check /health/liveliness liveliness || exit 1
-          check /health/readiness readiness || exit 1
+          echo "Testing collector endpoints..."
+          check "${BASE_URL}:{{ .Values.ports.healthCheck.servicePort }}/" health || exit 1
+          {{- if .Values.ports.metrics.enabled }}
+          check "${BASE_URL}:{{ .Values.ports.metrics.servicePort }}/metrics" metrics || exit 1
 
-          echo "Testing LiteLLM /models endpoint (401 expected without auth)..."
-          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${BASE_URL}/models")
-          echo "/models returned HTTP ${code:-connection-error} (informational only)"
+          echo "Verifying collector self-metrics are exposed..."
+          if curl -s --max-time 10 "${BASE_URL}:{{ .Values.ports.metrics.servicePort }}/metrics" | grep -q "otelcol_"; then
+            echo "Self-metrics (otelcol_*) PRESENT"
+          else
+            echo "ERROR: no otelcol_* metrics found on the metrics endpoint"
+            exit 1
+          fi
+          {{- end }}
 
-          echo "LiteLLM connection test PASSED"
+          echo "OTel Collector connection test PASSED"
       resources:
         requests:
           cpu: 10m

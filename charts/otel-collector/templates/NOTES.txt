@@ -1,0 +1,51 @@
+OpenTelemetry Collector {{ .Chart.AppVersion }} has been deployed.
+
+Release:   {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Mode:      {{ .Values.mode }}
+{{- if ne .Values.mode "daemonset" }}
+Replicas:  {{ .Values.replicaCount }}
+{{- end }}
+
+{{- if eq .Values.service.type "ClusterIP" }}
+
+Send telemetry to this collector:
+  OTLP gRPC:  {{ include "otel-collector.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:4317
+  OTLP HTTP:  {{ include "otel-collector.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:4318
+
+Port-forward for local testing:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "otel-collector.fullname" . }} 4317:4317 4318:4318
+
+{{- end }}
+
+Health check:
+  kubectl exec -n {{ .Release.Namespace }} deploy/{{ include "otel-collector.fullname" . }} -- \
+    wget -qO- http://localhost:13133/
+
+Self-metrics (Prometheus format):
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "otel-collector.fullname" . }} 8888:8888
+  curl http://localhost:8888/metrics
+
+{{- if not (dig "exporters" "otlp" "endpoint" "" .Values.config) }}
+
+NOTE: no OTLP exporter endpoint is configured — pipelines currently use the
+  debug exporter, so telemetry is not forwarded to a backend. For production,
+  define your OTLP exporter and reference it from the pipeline exporters:
+    config:
+      exporters:
+        otlp:
+          endpoint: "https://your-backend:4317"
+
+{{- end }}
+
+Production checklist:
+  [ ] OTLP exporter endpoint set and pipelines switched off the debug exporter
+  [ ] resources.requests and resources.limits tuned for your workload
+  [ ] config.processors.memory_limiter.limit_percentage tuned (default 80%)
+  [ ] replicaCount >= 2 (default)
+  [ ] networkPolicy.enabled=true (default)
+  [ ] metrics.serviceMonitor.enabled=true if using Prometheus Operator
+  [ ] pdb.enabled=true (default)
+
+Documentation: https://github.com/arieotech/helm-charts/tree/main/charts/otel-collector
+OTel Collector docs: https://opentelemetry.io/docs/collector/

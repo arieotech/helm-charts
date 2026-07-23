@@ -1,0 +1,85 @@
+{{- if and .Values.metrics.enabled .Values.metrics.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "otel-collector.fullname" . }}
+  namespace: {{ default .Release.Namespace .Values.metrics.prometheusRule.namespace }}
+  labels:
+    {{- include "otel-collector.labels" . | nindent 4 }}
+    {{- with .Values.metrics.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: otel-collector.rules
+      rules:
+        ## Alert: Collector process is down or unreachable
+        - alert: OtelCollectorDown
+          expr: up{job="{{ include "otel-collector.fullname" . }}"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "OpenTelemetry Collector {{ "{{" }} $labels.instance {{ "}}" }} is down"
+            description: >
+              The OpenTelemetry Collector has been unreachable for more than 5 minutes.
+              Check pod status: kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "otel-collector.name" . }}
+
+        ## Alert: Collector is dropping spans — likely overloaded or backend unavailable
+        - alert: OtelCollectorHighDroppedSpans
+          expr: |
+            rate(otelcol_processor_dropped_spans_total{job="{{ include "otel-collector.fullname" . }}"}[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "OTel Collector dropping spans ({{ "{{" }} $labels.instance {{ "}}" }})"
+            description: >
+              The collector is dropping spans at rate {{ "{{" }} $value | humanize {{ "}}" }}/s.
+              Common causes: memory_limiter triggered, exporter unavailable, or queue full.
+              Check exporter endpoint and increase memory limits if needed.
+
+        ## Alert: Collector is dropping metric data points
+        - alert: OtelCollectorHighDroppedMetricPoints
+          expr: |
+            rate(otelcol_processor_dropped_metric_points_total{job="{{ include "otel-collector.fullname" . }}"}[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "OTel Collector dropping metric points ({{ "{{" }} $labels.instance {{ "}}" }})"
+            description: >
+              The collector is dropping metric data points at rate {{ "{{" }} $value | humanize {{ "}}" }}/s.
+
+        ## Alert: Exporter failure rate is high
+        - alert: OtelCollectorExporterFailures
+          expr: |
+            rate(otelcol_exporter_send_failed_spans_total{job="{{ include "otel-collector.fullname" . }}"}[5m]) > 0.01
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "OTel Collector exporter failures on {{ "{{" }} $labels.instance {{ "}}" }}"
+            description: >
+              Exporter {{ "{{" }} $labels.exporter {{ "}}" }} is failing at {{ "{{" }} $value | humanize {{ "}}" }}/s.
+              Check the exporter endpoint and credentials.
+
+        ## Alert: Memory usage approaching the configured limit_percentage
+        - alert: OtelCollectorHighMemoryUsage
+          expr: |
+            otelcol_process_memory_rss{job="{{ include "otel-collector.fullname" . }}"} /
+            on(pod) kube_pod_container_resource_limits{resource="memory", container="otel-collector",
+              namespace="{{ .Release.Namespace }}"} > 0.75
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "OTel Collector memory above 75% on {{ "{{" }} $labels.pod {{ "}}" }}"
+            description: >
+              Memory usage is {{ "{{" }} $value | humanizePercentage {{ "}}" }}.
+              Consider increasing resources.limits.memory or tuning memory_limiter.
+
+        {{- with .Values.metrics.prometheusRule.additionalRules }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

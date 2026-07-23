@@ -1,0 +1,19 @@
+## Istio Ambient Mesh configuration.
+## ztunnel handles L4 mTLS transparently.
+## Health check and metrics ports are excluded from ztunnel interception
+## so that kubelet probes and Prometheus scrapes continue to work.
+
+istio:
+  ambient:
+    enabled: true
+    ## Exclude health check (13133) and self-metrics (8888) from ztunnel
+    ## so kubelet liveness/readiness probes and Prometheus scrapes succeed.
+    excludedPorts:
+      - 13133
+      - 8888
+
+replicaCount: 2
+
+pdb:
+  enabled: true
+  minAvailable: 1

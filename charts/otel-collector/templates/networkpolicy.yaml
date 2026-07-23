@@ -1,0 +1,66 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "otel-collector.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "otel-collector.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "otel-collector.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    ## Allow OTLP gRPC (4317) from any pod in-cluster
+    {{- if .Values.ports.otlp.enabled }}
+    - ports:
+        - port: {{ .Values.ports.otlp.containerPort }}
+          protocol: TCP
+    {{- end }}
+    ## Allow OTLP HTTP (4318) from any pod in-cluster
+    {{- if .Values.ports.otlpHttp.enabled }}
+    - ports:
+        - port: {{ .Values.ports.otlpHttp.containerPort }}
+          protocol: TCP
+    {{- end }}
+    ## Allow Prometheus scrape of self-metrics (8888)
+    {{- if .Values.ports.metrics.enabled }}
+    - ports:
+        - port: {{ .Values.ports.metrics.containerPort }}
+          protocol: TCP
+    {{- end }}
+    ## Allow health check probes from kubelet and readiness checks (13133)
+    {{- if .Values.ports.healthCheck.enabled }}
+    - ports:
+        - port: {{ .Values.ports.healthCheck.containerPort }}
+          protocol: TCP
+    {{- end }}
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    ## Always allow DNS resolution
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    ## Allow HTTPS to reach external or in-cluster OTLP backends and exporters
+    - ports:
+        - port: 443
+          protocol: TCP
+    ## Allow OTLP gRPC to any backend endpoint
+    - ports:
+        - port: 4317
+          protocol: TCP
+    ## Allow OTLP HTTP to any backend endpoint
+    - ports:
+        - port: 4318
+          protocol: TCP
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

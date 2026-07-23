@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "otel-collector.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "otel-collector.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    {{- if .Values.ports.otlp.enabled }}
+    - name: otlp
+      port: {{ .Values.ports.otlp.servicePort }}
+      targetPort: otlp
+      protocol: {{ .Values.ports.otlp.protocol }}
+      appProtocol: grpc
+    {{- end }}
+    {{- if .Values.ports.otlpHttp.enabled }}
+    - name: otlp-http
+      port: {{ .Values.ports.otlpHttp.servicePort }}
+      targetPort: otlp-http
+      protocol: {{ .Values.ports.otlpHttp.protocol }}
+      appProtocol: http
+    {{- end }}
+    {{- if .Values.ports.metrics.enabled }}
+    - name: metrics
+      port: {{ .Values.ports.metrics.servicePort }}
+      targetPort: metrics
+      protocol: {{ .Values.ports.metrics.protocol }}
+    {{- end }}
+    {{- if .Values.ports.healthCheck.enabled }}
+    - name: health
+      port: {{ .Values.ports.healthCheck.servicePort }}
+      targetPort: health
+      protocol: {{ .Values.ports.healthCheck.protocol }}
+    {{- end }}
+  selector:
+    {{- include "otel-collector.selectorLabels" . | nindent 4 }}
