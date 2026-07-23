@@ -568,6 +568,57 @@ entries:
   litellm:
   - annotations:
       artifacthub.io/changes: |
+        - kind: fixed
+          description: >
+            Helm test pod no longer carries the workload selector labels, which made
+            it match the Service selector and the NetworkPolicy podSelector (whose
+            egress rules dropped the test's own traffic).
+      artifacthub.io/images: |
+        - name: litellm
+          image: ghcr.io/berriai/litellm:v1.92.0
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: LiteLLM proxy documentation
+          url: https://docs.litellm.ai/docs/proxy/deploy
+        - name: Arieotech chart standards
+          url: https://github.com/arieotech/helm-charts/blob/main/docs/chart-standards.md
+      artifacthub.io/prerelease: "false"
+    apiVersion: v2
+    appVersion: 1.92.0
+    created: "2026-07-23T10:15:49.942042156Z"
+    dependencies:
+    - name: arieotech-lib
+      repository: file://../arieotech-lib
+      version: 0.2.0
+    description: 'Production-grade LiteLLM AI gateway. Unified proxy for OpenAI, Anthropic,
+      Bedrock, and 100+ LLM providers. PSA restricted-mode, NetworkPolicy, JSON Schema,
+      SOC2 structured audit logging, DPDP PII-stripping defaults, Istio Ambient support. '
+    digest: fe0ae9bd39e47cb08f1f8aacef7e3f19dab253ba53003420e145281b5670a899
+    home: https://litellm.ai
+    keywords:
+    - litellm
+    - ai
+    - llm
+    - gateway
+    - openai
+    - anthropic
+    - bedrock
+    - mlops
+    - dpdp
+    maintainers:
+    - email: helm@arieotech.com
+      name: Arieotech
+      url: https://arieotech.com
+    name: litellm
+    sources:
+    - https://github.com/arieotech/helm-charts/tree/main/charts/litellm
+    - https://github.com/BerriAI/litellm
+    type: application
+    urls:
+    - https://github.com/arieotech/helm-charts/releases/download/litellm-0.1.1/litellm-0.1.1.tgz
+    version: 0.1.1
+  - annotations:
+      artifacthub.io/changes: |
         - kind: added
           description: >
             Initial release — production-grade LiteLLM 1.92.0 AI gateway with PSA
@@ -617,4 +668,55 @@ entries:
     urls:
     - https://github.com/arieotech/helm-charts/releases/download/litellm-0.1.0/litellm-0.1.0.tgz
     version: 0.1.0
-generated: "2026-07-15T13:56:41.749271458Z"
+  otel-collector:
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Initial release — production OpenTelemetry Collector with full JSON Schema, Istio Ambient, SOC2/DPDP defaults
+      artifacthub.io/images: |
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.154.0
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: OpenTelemetry Collector documentation
+          url: https://opentelemetry.io/docs/collector/
+        - name: Upstream issue — incomplete default image
+          url: https://github.com/open-telemetry/opentelemetry-helm-charts/issues/1055
+      artifacthub.io/prerelease: "false"
+      artifacthub.io/recommendations: |
+        - url: https://artifacthub.io/packages/helm/arieotech/keycloak
+    apiVersion: v2
+    appVersion: 0.154.0
+    created: "2026-07-23T10:15:50.076775726Z"
+    dependencies:
+    - name: arieotech-lib
+      repository: file://../arieotech-lib
+      version: 0.2.0
+    description: 'Production-grade OpenTelemetry Collector. Fixes the incomplete default
+      image (upstream issue #1055), adds full JSON Schema validation, Istio Ambient
+      Mesh support, PSA restricted-mode security, and SOC2/DPDP compliance defaults.
+      Supports Deployment and DaemonSet modes. '
+    digest: eab6cf3dc66ea0e78cff9d3349e54b9ee277f30a33b03b6808ddc341bc6b0bb4
+    home: https://opentelemetry.io/docs/collector/
+    icon: https://opentelemetry.io/img/logos/opentelemetry-horizontal-color.svg
+    keywords:
+    - opentelemetry
+    - otel
+    - observability
+    - tracing
+    - metrics
+    - logs
+    - otlp
+    maintainers:
+    - email: helm@arieotech.com
+      name: Arieotech
+      url: https://arieotech.com
+    name: otel-collector
+    sources:
+    - https://github.com/arieotech/helm-charts/tree/main/charts/otel-collector
+    - https://github.com/open-telemetry/opentelemetry-collector-contrib
+    type: application
+    urls:
+    - https://github.com/arieotech/helm-charts/releases/download/otel-collector-0.1.0/otel-collector-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-07-23T10:15:50.076802036Z"
