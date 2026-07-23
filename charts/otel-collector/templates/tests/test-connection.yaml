@@ -3,8 +3,16 @@ kind: Pod
 metadata:
   name: {{ printf "%s-test-connection" (include "otel-collector.fullname" .) }}
   namespace: {{ .Release.Namespace }}
+  ## Deliberately NOT the shared chart labels: the selector labels
+  ## (app.kubernetes.io/name + instance) would make this test pod match the
+  ## workload's Service selector (becoming a broken endpoint) and the
+  ## NetworkPolicy podSelector (whose egress allow-list would drop the
+  ## test's own traffic to the collector ports).
   labels:
-    {{- include "otel-collector.labels" . | nindent 4 }}
+    helm.sh/chart: {{ include "otel-collector.chart" . }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/part-of: otel-collector
+    app.kubernetes.io/component: test
     helm.sh/chart-test: "true"
   annotations:
     "helm.sh/hook": test
