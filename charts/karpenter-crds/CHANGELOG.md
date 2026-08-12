@@ -8,11 +8,11 @@ versioning independently of the `appVersion` (the Karpenter release the CRDs tra
 - Initial release.
 - Karpenter **1.14.0** CRDs vendored verbatim from upstream
   (`aws/karpenter-provider-aws` `v1.14.0`):
-  - `nodepools.karpenter.sh` (v1)
-  - `nodeclaims.karpenter.sh` (v1)
-  - `nodeoverlays.karpenter.sh` (v1)
-  - `ec2nodeclasses.karpenter.k8s.aws` (v1)
-  - `capacitybuffers.autoscaling.x-k8s.io` (v1)
+  - `nodepools.karpenter.sh` (v1, Cluster)
+  - `nodeclaims.karpenter.sh` (v1, Cluster)
+  - `nodeoverlays.karpenter.sh` (v1alpha1, Cluster)
+  - `ec2nodeclasses.karpenter.k8s.aws` (v1, Cluster)
+  - `capacitybuffers.autoscaling.x-k8s.io` (v1beta1, Namespaced)
 - CRDs are Helm-managed (templated labels/annotations only — schemas are byte-for-byte
   upstream) so they can be versioned, upgraded, and rolled back independently of the
   controller. Arieotech fix for ArgoCD CRD drift (upstream

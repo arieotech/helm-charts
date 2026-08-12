@@ -5,7 +5,7 @@ Karpenter CustomResourceDefinitions as **Helm-managed** resources so they can be
 versioned, upgraded, and rolled back independently of the Karpenter controller.
 
 Install this chart **first**, then install the [`karpenter`](../karpenter) controller
-chart with `crds.install: false` (its default).
+chart — which deliberately ships no CRDs of its own, so there is nothing to toggle off.
 
 ## Why a separate CRD chart?
 
@@ -30,9 +30,9 @@ Splitting the CRDs into their own chart:
 |-----|-----------------|-------|
 | `NodePool` | `karpenter.sh/v1` | Cluster |
 | `NodeClaim` | `karpenter.sh/v1` | Cluster |
-| `NodeOverlay` | `karpenter.sh/v1` | Cluster |
+| `NodeOverlay` | `karpenter.sh/v1alpha1` | Cluster |
 | `EC2NodeClass` | `karpenter.k8s.aws/v1` | Cluster |
-| `CapacityBuffer` | `autoscaling.x-k8s.io/v1` | Cluster |
+| `CapacityBuffer` | `autoscaling.x-k8s.io/v1beta1` | Namespaced |
 
 CRD schemas are vendored **verbatim** from `aws/karpenter-provider-aws` at tag
 `v1.14.0` — only `metadata.labels` and `metadata.annotations` are templated.

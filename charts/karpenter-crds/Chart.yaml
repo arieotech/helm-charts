@@ -2,12 +2,13 @@ apiVersion: v2
 name: karpenter-crds
 description: >
   CRD-only companion chart for Karpenter 1.14.0. Installs NodePool, NodeClaim,
-  NodeOverlay (karpenter.sh/v1), EC2NodeClass (karpenter.k8s.aws/v1), and
-  CapacityBuffer (autoscaling.x-k8s.io/v1) as Helm-managed resources so they can be
+  NodeOverlay (karpenter.sh/v1alpha1), EC2NodeClass (karpenter.k8s.aws/v1), and
+  CapacityBuffer (autoscaling.x-k8s.io/v1beta1) as Helm-managed resources so they can be
   versioned, upgraded, and rolled back independently of the Karpenter controller.
-  The Arieotech fix for ArgoCD CRD drift (upstream #6847): the main Karpenter chart
-  embeds static CRDs that ignore Helm values and confuse GitOps diffing — install
-  this chart first and disable CRDs in the controller chart. Safe for GitOps/ArgoCD.
+  The Arieotech fix for ArgoCD CRD drift (upstream #6847): Karpenter's own controller
+  chart embeds static CRDs that ignore Helm values and confuse GitOps diffing — install
+  this chart first, and use the Arieotech karpenter chart, which ships no CRDs of its own.
+  Safe for GitOps/ArgoCD.
 type: application
 version: 0.1.0
 appVersion: "1.14.0"
