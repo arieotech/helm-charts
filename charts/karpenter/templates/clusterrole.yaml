@@ -1,0 +1,77 @@
+{{- if .Values.rbac.create }}
+## Controller ClusterRole. Matches the upstream Karpenter 1.14.0 core ClusterRole
+## (aws/karpenter-provider-aws charts/karpenter/templates/clusterrole-core.yaml).
+## Write access to Leases lives in the namespaced Role (role.yaml), not here — the
+## controller only writes its own leader-election Lease in its own namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "karpenter.fullname" . }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+rules:
+  ## Read access to the workload/topology objects Karpenter simulates scheduling against.
+  - apiGroups: [""]
+    resources:
+      - podtemplates
+      - pods
+      - nodes
+      - persistentvolumes
+      - persistentvolumeclaims
+      - replicationcontrollers
+      - namespaces
+      - serviceaccounts
+    verbs: ["get", "list", "watch"]
+  ## Node lifecycle: cordon/label/annotate (patch/update) and terminate (delete).
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["patch", "update", "delete"]
+  ## Evict/delete pods when consolidating or disrupting nodes.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
+  ## Emit provisioning/disruption events.
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  ## Workload controllers — read for pod ownership / do-not-disrupt evaluation.
+  - apiGroups: ["apps"]
+    resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch"]
+  ## Storage topology — used to place nodes where required volumes can attach.
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "csinodes", "csidrivers", "volumeattachments"]
+    verbs: ["get", "list", "watch"]
+  ## PodDisruptionBudgets — respected when disrupting nodes.
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+  ## Karpenter core CRs.
+  - apiGroups: ["karpenter.sh"]
+    resources: ["nodepools", "nodepools/status", "nodeoverlays", "nodeoverlays/status"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["karpenter.sh"]
+    resources: ["nodeclaims", "nodeclaims/status"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  ## AWS provider CRs.
+  - apiGroups: ["karpenter.k8s.aws"]
+    resources: ["ec2nodeclasses", "ec2nodeclasses/status"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  ## CapacityBuffer (autoscaling SIG) — read + status.
+  - apiGroups: ["autoscaling.x-k8s.io"]
+    resources: ["capacitybuffers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling.x-k8s.io"]
+    resources: ["capacitybuffers/status"]
+    verbs: ["update", "patch"]
+  {{- with .Values.rbac.additionalClusterRoleRules }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}

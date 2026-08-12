@@ -1,0 +1,7 @@
+## CI install profile for karpenter-crds.
+## `ct install` runs `helm uninstall` afterwards; with keepCRDs: true (the default)
+## the CRDs would survive teardown and leak across the shared CI cluster's chart
+## installs, so disable the keep policy for the test run only.
+keepCRDs: false
+commonLabels:
+  ci.arieotech.com/profile: default

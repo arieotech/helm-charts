@@ -1,0 +1,262 @@
+## Arieotech Karpenter Helm Chart — Production Defaults
+## Install the karpenter-crds chart FIRST (separate chart) — this chart ships NO CRDs,
+## which is the fix for ArgoCD CRD drift (upstream #6847).
+## See: https://github.com/arieotech/helm-charts/tree/main/charts/karpenter-crds
+
+global:
+  imagePullSecrets: []
+
+## -- Controller image
+## Digest takes precedence over tag when set — pin the digest in production.
+image:
+  registry: public.ecr.aws
+  repository: karpenter/controller
+  tag: "1.14.0"
+  digest: ""
+  pullPolicy: IfNotPresent
+
+## Karpenter runs 2 replicas with leader election; only the leader is active, the
+## standby takes over on failure. Both are counted by the PDB below.
+replicaCount: 2
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  ## IRSA / Pod Identity: set the IAM role the controller assumes, e.g.
+  ##   eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/KarpenterController
+  annotations: {}
+
+## Karpenter needs continuous Kubernetes API access (watching pods/nodes/nodeclaims)
+## AND an AWS credential source. With IRSA/Pod Identity the AWS token is injected by
+## the EKS webhook into its own projected volume, but the controller still reads the
+## in-cluster Kubernetes API token from the default path — so the SA token is mounted
+## (unlike some other Arieotech charts that disable it and use an explicit projection).
+automountServiceAccountToken: true
+
+podAnnotations: {}
+podLabels: {}
+
+## Pod security context (PSA restricted-mode compliant).
+## 65532 is the non-root "nonroot" UID baked into the distroless controller image.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container security context (PSA restricted-mode compliant).
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65532
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    ## No CPU limit on purpose — Karpenter is latency-sensitive during scheduling
+    ## simulations and CPU throttling delays node provisioning. Memory is capped and
+    ## surfaced to the process via the MEMORY_LIMIT env below so its GC targets it.
+    memory: 512Mi
+
+## Karpenter should never run on a node it manages (it would deprovision its own host).
+## This nodeAffinity keeps it off any Karpenter-owned node; pair with a nodeSelector or
+## a managed node group / Fargate profile for the controller itself.
+nodeSelector:
+  kubernetes.io/os: linux
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+## Custom affinity fully replaces the built-in anti-affinity + do-not-self-host rule
+## below when set. Leave empty to keep the safe defaults.
+affinity: {}
+
+priorityClassName: system-cluster-critical
+terminationGracePeriodSeconds: 30
+dnsPolicy: ClusterFirst
+
+## Spread the two replicas across nodes and zones for HA.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+
+## -----------------------------------------------------------------------
+## Karpenter controller settings (rendered into env vars)
+## -----------------------------------------------------------------------
+settings:
+  ## REQUIRED: the EKS cluster name.
+  clusterName: ""
+  ## EKS cluster API endpoint. Leave empty on EKS to let Karpenter auto-discover it
+  ## (e.g. https://XXXX.gr7.us-east-1.eks.amazonaws.com).
+  clusterEndpoint: ""
+  ## SQS queue name for EC2 Spot interruption / rebalance / health events. Strongly
+  ## recommended in production so Karpenter drains nodes gracefully ahead of reclaim.
+  interruptionQueue: ""
+  ## Batch window for grouping pod scheduling decisions into a single provisioning call.
+  batchMaxDuration: "10s"
+  batchIdleDuration: "1s"
+  ## Feature gates — keys are passed verbatim as Karpenter Go feature-gate names, so
+  ## keep them PascalCase. Defaults mirror upstream 1.14.0. `drift` is intentionally
+  ## absent: drift detection is GA/always-on in v1 (no toggle).
+  featureGates:
+    ReservedCapacity: true
+    SpotToSpotConsolidation: false
+    NodeRepair: false
+    NodeOverlay: false
+    StaticCapacity: false
+    CapacityBuffer: false
+
+## Log level: debug, info, error. Karpenter emits structured JSON to stdout by default
+## (there is no encoding toggle in v1), which satisfies the SOC2 structured-audit baseline.
+logLevel: info
+
+## -----------------------------------------------------------------------
+## RBAC
+## -----------------------------------------------------------------------
+rbac:
+  ## Create the ClusterRole/ClusterRoleBinding and the namespaced leases Role.
+  create: true
+  ## Extra rules appended to the controller ClusterRole (e.g. permissions your custom
+  ## interruption handling or additional controllers need).
+  additionalClusterRoleRules: []
+  ## Karpenter needs to read the kube-dns/CoreDNS Service in kube-system to resolve the
+  ## in-cluster DNS ClusterIP it hands to provisioned nodes. This creates a small Role +
+  ## RoleBinding in kube-system granting get on that one Service.
+  dns:
+    create: true
+    namespace: kube-system
+    serviceName: kube-dns
+
+## -----------------------------------------------------------------------
+## Service (exposes the metrics port so a ServiceMonitor can scrape it)
+## -----------------------------------------------------------------------
+service:
+  type: ClusterIP
+  annotations: {}
+
+## Container ports. Karpenter v1 has NO webhook server — validation moved to CEL in the
+## CRDs — so there is no 8443 port here (unlike pre-v1 charts).
+ports:
+  metrics: 8080
+  health: 8081
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: health
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: health
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+## -----------------------------------------------------------------------
+## NetworkPolicy — enabled by default (Arieotech baseline requirement)
+## -----------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  ## Optional CIDR for the Kubernetes API server (e.g. "10.0.0.1/32"). When set, the
+  ## API-server egress rule is restricted to it. Karpenter also egresses to AWS APIs
+  ## (EC2, SQS, pricing, EKS) on 443, so awsApiEgress below stays open regardless.
+  ## Find the API server CIDR with:
+  ##   kubectl get endpoints kubernetes -n default -o jsonpath='{.subsets[0].addresses[*].ip}'
+  kubeApiServerCIDR: ""
+  ## Allow HTTPS egress to any destination for the AWS API calls Karpenter makes
+  ## (EC2, SQS, Pricing, IAM, EKS). Kubernetes NetworkPolicy cannot select AWS regional
+  ## endpoints, so this is port-only (443 to 0.0.0.0/0). Disable only if you pin all AWS
+  ## traffic through a known egress CIDR you add via extraEgress.
+  awsApiEgress: true
+  ## Allow egress to the IMDS endpoint (169.254.169.254:80). Only needed when NOT using
+  ## IRSA/Pod Identity (i.e. falling back to the node instance profile). Off by default.
+  imdsEgress: false
+  extraIngress: []
+  extraEgress: []
+
+## PodDisruptionBudget. maxUnavailable: 1 matches upstream and keeps at least one
+## replica (the potential leader) available during voluntary disruptions.
+pdb:
+  enabled: true
+  maxUnavailable: 1
+
+## -----------------------------------------------------------------------
+## Observability
+## -----------------------------------------------------------------------
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    labels: {}
+    interval: "30s"
+    scrapeTimeout: "10s"
+    port: metrics
+    path: /metrics
+    relabelings: []
+    metricRelabelings: []
+  prometheusRule:
+    enabled: false
+    namespace: ""
+    labels: {}
+    additionalRules: []
+
+## -----------------------------------------------------------------------
+## Istio Ambient Mesh
+## -----------------------------------------------------------------------
+istio:
+  ambient:
+    enabled: false
+    ## Exclude the metrics (8080) and health (8081) ports from ztunnel capture so
+    ## Prometheus scraping and kubelet probes reach the pod directly.
+    excludedPorts:
+      - 8080
+      - 8081
+
+## -----------------------------------------------------------------------
+## SOC2 compliance defaults
+## -----------------------------------------------------------------------
+soc2:
+  auditLogging:
+    ## Karpenter emits structured JSON to stdout by default; when true the chart pins
+    ## log output to stdout (LOG_OUTPUT_PATHS=stdout) so it stays capturable by the
+    ## cluster log pipeline for audit evidence.
+    enabled: true
+
+## -----------------------------------------------------------------------
+## DPDP / data privacy
+## -----------------------------------------------------------------------
+dpdp:
+  ## Karpenter processes no end-user PII, so there is no masking toggle. This only adds
+  ## a dpdp.arieotech.com/data-residency-region pod annotation for your policy layer
+  ## (OPA/Gatekeeper) to key off of.
+  dataResidency:
+    enabled: false
+    region: ""
+
+## -----------------------------------------------------------------------
+## Extra manifests injection
+## -----------------------------------------------------------------------
+extraEnv: []
+extraVolumes: []
+extraVolumeMounts: []
+initContainers: []
+sidecars: []

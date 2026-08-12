@@ -1,0 +1,26 @@
+{{- if .Values.metrics.enabled }}
+## Service publishing the controller metrics port. Required for the ServiceMonitor to
+## have a stable endpoint to select. Health (8081) is intentionally not exposed here —
+## probes are node-local (kubelet) and need no Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "karpenter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "karpenter.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: metrics
+      port: {{ .Values.ports.metrics }}
+      targetPort: metrics
+      protocol: TCP
+{{- end }}

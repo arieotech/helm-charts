@@ -1,0 +1,33 @@
+Karpenter {{ .Chart.AppVersion }} has been installed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Controller image: {{ include "arieotech.image" .Values.image }}
+Replicas:         {{ .Values.replicaCount }} (leader-elected; one active, one standby)
+
+{{- if not .Values.settings.clusterName }}
+
+⚠️  settings.clusterName is empty — the controller will not start. Re-run with:
+      --set settings.clusterName=<your-eks-cluster-name>
+{{- end }}
+
+Prerequisites (this chart ships NO CRDs — that is the ArgoCD-drift fix, upstream #6847):
+  1. Install the CRDs first:
+       helm install karpenter-crds arieotech/karpenter-crds -n {{ .Release.Namespace }}
+  2. Give the controller an AWS identity via IRSA or EKS Pod Identity by annotating its
+     ServiceAccount ({{ include "karpenter.serviceAccountName" . }}) with the IAM role ARN:
+       serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::<acct>:role/<role>
+
+Check rollout:
+  kubectl rollout status deploy/{{ include "karpenter.fullname" . }} -n {{ .Release.Namespace }}
+
+Then create a NodePool + EC2NodeClass to start provisioning nodes. See:
+  https://karpenter.sh/docs/getting-started/
+
+Run the bundled smoke test:
+  helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+{{- if .Values.networkPolicy.enabled }}
+
+NetworkPolicy is ENABLED. Egress is allowed to DNS, the Kubernetes API server, and
+AWS APIs on 443. If Karpenter can't reach EC2/SQS, review networkPolicy.* in values.yaml
+{{- if not .Values.networkPolicy.awsApiEgress }} (awsApiEgress is currently false){{- end }}.
+{{- end }}

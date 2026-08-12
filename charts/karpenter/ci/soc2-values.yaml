@@ -1,0 +1,26 @@
+## SOC2 profile — structured JSON audit logging to stdout, API-server egress pinned to
+## a CIDR, and metrics wired to Prometheus for evidence collection.
+settings:
+  clusterName: ci-cluster
+  clusterEndpoint: https://example.eks.amazonaws.com
+  interruptionQueue: ci-cluster-interruptions
+
+soc2:
+  auditLogging:
+    enabled: true
+
+networkPolicy:
+  enabled: true
+  kubeApiServerCIDR: "10.0.0.1/32"
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+  prometheusRule:
+    enabled: true
+
+dpdp:
+  dataResidency:
+    enabled: true
+    region: ap-south-1

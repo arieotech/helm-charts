@@ -1,0 +1,181 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "karpenter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "karpenter.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "karpenter.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: controller
+        {{- include "arieotech.istioAmbientLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- include "karpenter.podAnnotations" . | nindent 6 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "karpenter.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
+      securityContext:
+        {{- include "arieotech.podSecurityContext" . | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: karpenter
+          image: {{ include "arieotech.image" .Values.image | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- include "arieotech.containerSecurityContext" . | nindent 12 }}
+          env:
+            - name: KUBERNETES_MIN_VERSION
+              value: "1.19.0-0"
+            ## Namespace the controller runs in — used for the leader-election Lease
+            ## and to locate its own resources.
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            ## Name of this chart's Service, published by the controller as its metrics
+            ## endpoint target.
+            - name: KARPENTER_SERVICE
+              value: {{ include "karpenter.fullname" . | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.logLevel | quote }}
+            {{- if .Values.soc2.auditLogging.enabled }}
+            - name: LOG_OUTPUT_PATHS
+              value: "stdout"
+            - name: LOG_ERROR_OUTPUT_PATHS
+              value: "stderr"
+            {{- end }}
+            - name: METRICS_PORT
+              value: {{ .Values.ports.metrics | quote }}
+            - name: HEALTH_PROBE_PORT
+              value: {{ .Values.ports.health | quote }}
+            ## Surface the pod's own CPU request and memory limit to the process so its
+            ## GOMAXPROCS / GOMEMLIMIT track the cgroup, matching upstream behaviour.
+            - name: CPU_REQUESTS
+              valueFrom:
+                resourceFieldRef:
+                  containerName: karpenter
+                  resource: requests.cpu
+                  divisor: "1m"
+            - name: MEMORY_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: karpenter
+                  resource: limits.memory
+                  divisor: "0"
+            - name: FEATURE_GATES
+              value: {{ include "karpenter.featureGates" . | quote }}
+            - name: BATCH_MAX_DURATION
+              value: {{ .Values.settings.batchMaxDuration | quote }}
+            - name: BATCH_IDLE_DURATION
+              value: {{ .Values.settings.batchIdleDuration | quote }}
+            ## REQUIRED — Karpenter exits on startup if CLUSTER_NAME is unset.
+            - name: CLUSTER_NAME
+              value: {{ required "settings.clusterName is required — set it to your EKS cluster name" .Values.settings.clusterName | quote }}
+            {{- with .Values.settings.clusterEndpoint }}
+            - name: CLUSTER_ENDPOINT
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.settings.interruptionQueue }}
+            - name: INTERRUPTION_QUEUE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.ports.metrics }}
+              protocol: TCP
+            - name: health
+              containerPort: {{ .Values.ports.health }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            ## Writable scratch dir so readOnlyRootFilesystem: true holds even if a
+            ## dependency ever needs a temp file.
+            - name: tmp
+              mountPath: /tmp
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- with .Values.sidecars }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- else }}
+      affinity:
+        ## Spread replicas across nodes...
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "karpenter.selectorLabels" . | nindent 20 }}
+        ## ...and never schedule the controller onto a node Karpenter itself manages
+        ## (a self-hosted controller would deprovision its own host).
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: karpenter.sh/nodepool
+                    operator: DoesNotExist
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- range . }}
+        - {{ toYaml . | nindent 10 | trim }}
+          labelSelector:
+            matchLabels:
+              {{- include "karpenter.selectorLabels" $ | nindent 14 }}
+        {{- end }}
+      {{- end }}

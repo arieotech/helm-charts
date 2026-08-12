@@ -1,0 +1,42 @@
+{{- if .Values.rbac.create }}
+## Leader-election Role — namespaced to the controller's own namespace. Karpenter's
+## leader-election Lease is named "karpenter-leader-election" (hardcoded upstream,
+## independent of the release name), so the patch/update grant is pinned to that name.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "karpenter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    resourceNames: ["karpenter-leader-election"]
+    verbs: ["patch", "update"]
+{{- end }}
+{{- if and .Values.rbac.create .Values.rbac.dns.create }}
+---
+## DNS Role — grants read on the single kube-dns/CoreDNS Service so Karpenter can
+## discover the in-cluster DNS ClusterIP to pass to provisioned nodes' kubelets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "karpenter.fullname" . }}-dns
+  namespace: {{ .Values.rbac.dns.namespace }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    resourceNames: [{{ .Values.rbac.dns.serviceName | quote }}]
+    verbs: ["get"]
+{{- end }}

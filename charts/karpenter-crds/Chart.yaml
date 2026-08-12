@@ -1,0 +1,50 @@
+apiVersion: v2
+name: karpenter-crds
+description: >
+  CRD-only companion chart for Karpenter 1.14.0. Installs NodePool, NodeClaim,
+  NodeOverlay (karpenter.sh/v1), EC2NodeClass (karpenter.k8s.aws/v1), and
+  CapacityBuffer (autoscaling.x-k8s.io/v1) as Helm-managed resources so they can be
+  versioned, upgraded, and rolled back independently of the Karpenter controller.
+  The Arieotech fix for ArgoCD CRD drift (upstream #6847): the main Karpenter chart
+  embeds static CRDs that ignore Helm values and confuse GitOps diffing — install
+  this chart first and disable CRDs in the controller chart. Safe for GitOps/ArgoCD.
+type: application
+version: 0.1.0
+appVersion: "1.14.0"
+keywords:
+  - karpenter
+  - crds
+  - autoscaling
+  - nodepool
+  - ec2nodeclass
+  - gitops
+  - argocd
+home: https://karpenter.sh
+sources:
+  - https://github.com/arieotech/helm-charts/tree/main/charts/karpenter-crds
+  - https://github.com/aws/karpenter-provider-aws
+icon: https://raw.githubusercontent.com/aws/karpenter-provider-aws/main/website/static/banner.png
+maintainers:
+  - name: Arieotech
+    email: helm@arieotech.com
+    url: https://arieotech.com
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/operator: "true"
+  artifacthub.io/changes: |
+    - kind: added
+      description: >
+        Initial release — Karpenter 1.14.0 CRDs (NodePool, NodeClaim, NodeOverlay,
+        EC2NodeClass, CapacityBuffer) as Helm-managed resources with resource-policy: keep.
+        Arieotech fix for ArgoCD CRD drift (upstream #6847). Enables independent CRD
+        lifecycle management for GitOps/ArgoCD workflows.
+  artifacthub.io/recommendations: |
+    - url: https://artifacthub.io/packages/helm/arieotech/karpenter
+  artifacthub.io/links: |
+    - name: Karpenter controller chart
+      url: https://github.com/arieotech/helm-charts/tree/main/charts/karpenter
+    - name: ArgoCD CRD drift rationale (upstream #6847)
+      url: https://github.com/aws/karpenter-provider-aws/issues/6847
+    - name: Karpenter documentation
+      url: https://karpenter.sh/docs/
