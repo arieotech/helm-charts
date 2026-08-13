@@ -1,0 +1,8 @@
+## Minimal values for `ct lint` / template rendering and Trivy config scanning.
+## The karpenter controller chart is excluded from `ct install` (see
+## .github/workflows/lint-test.yaml) because Karpenter cannot reach Ready without a
+## real AWS account/EKS control plane — so these values only need to render, not run.
+settings:
+  clusterName: ci-cluster
+  clusterEndpoint: https://example.eks.amazonaws.com
+  interruptionQueue: ci-cluster-interruptions

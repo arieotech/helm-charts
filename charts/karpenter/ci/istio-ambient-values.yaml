@@ -1,0 +1,19 @@
+## Istio Ambient Mesh profile — pod joins the ambient dataplane; metrics (8080) and
+## health (8081) ports are excluded from ztunnel capture so Prometheus and the kubelet
+## reach the pod directly.
+settings:
+  clusterName: ci-cluster
+  clusterEndpoint: https://example.eks.amazonaws.com
+  interruptionQueue: ci-cluster-interruptions
+
+istio:
+  ambient:
+    enabled: true
+    excludedPorts:
+      - 8080
+      - 8081
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true

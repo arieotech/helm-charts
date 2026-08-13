@@ -1,0 +1,81 @@
+{{- if .Values.networkPolicy.enabled }}
+## NetworkPolicy for the Karpenter controller.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "karpenter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "karpenter.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    ## Port-only: Prometheus scrape of the metrics port. Kubernetes NetworkPolicy has no
+    ## portable selector for an arbitrary scraper — add a podSelector/namespaceSelector
+    ## for your Prometheus via networkPolicy.extraIngress to tighten this.
+    {{- if .Values.metrics.enabled }}
+    - ports:
+        - port: metrics
+          protocol: TCP
+    {{- end }}
+    ## Port-only: health/readiness probes come from the kubelet on the node, which has
+    ## no selectable pod/namespace identity NetworkPolicy can match.
+    - ports:
+        - port: health
+          protocol: TCP
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    ## Always allow DNS.
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    ## Kubernetes API server (Karpenter watches pods/nodes/nodeclaims and writes status).
+    {{- if .Values.networkPolicy.kubeApiServerCIDR }}
+    - to:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.kubeApiServerCIDR }}
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 6443
+          protocol: TCP
+    {{- else }}
+    ## Port-only: allows HTTPS egress to ANY destination on 443/6443. Set
+    ## networkPolicy.kubeApiServerCIDR to restrict the API-server rule specifically.
+    - ports:
+        - port: 443
+          protocol: TCP
+        - port: 6443
+          protocol: TCP
+    {{- end }}
+    {{- if .Values.networkPolicy.awsApiEgress }}
+    ## AWS API calls (EC2, SQS, Pricing, IAM, EKS). NetworkPolicy cannot select AWS
+    ## regional endpoints, so this is port-only (443 to any). Pin these through a known
+    ## egress CIDR via extraEgress and set awsApiEgress: false if your environment requires it.
+    - ports:
+        - port: 443
+          protocol: TCP
+    {{- end }}
+    {{- if .Values.networkPolicy.imdsEgress }}
+    ## Instance Metadata Service — only needed when NOT using IRSA/Pod Identity.
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.254/32
+      ports:
+        - port: 80
+          protocol: TCP
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

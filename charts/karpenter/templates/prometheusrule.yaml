@@ -1,0 +1,71 @@
+{{- if and .Values.metrics.enabled .Values.metrics.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "karpenter.fullname" . }}
+  namespace: {{ default .Release.Namespace .Values.metrics.prometheusRule.namespace }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+    {{- with .Values.metrics.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: karpenter.controller.rules
+      rules:
+        ## Alert when the controller Deployment has no available replicas — node
+        ## provisioning and disruption are offline.
+        - alert: KarpenterDown
+          expr: |
+            kube_deployment_status_replicas_available{
+              deployment="{{ include "karpenter.fullname" . }}",
+              namespace="{{ .Release.Namespace }}"
+            } == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Karpenter controller has no available replicas"
+            description: >
+              The Karpenter controller Deployment {{ "{{" }} $labels.deployment {{ "}}" }}
+              in namespace {{ "{{" }} $labels.namespace {{ "}}" }} has had zero available
+              replicas for more than 5 minutes. Nodes will not be provisioned or consolidated.
+
+        ## Reconcile errors — increase(), not a raw counter > 0:
+        ## controller_runtime_reconcile_errors_total is monotonic, so a bare `> 0` would
+        ## fire forever after the first error ever recorded.
+        - alert: KarpenterReconcileErrors
+          expr: |
+            increase(controller_runtime_reconcile_errors_total{
+              job="{{ include "karpenter.fullname" . }}"
+            }[5m]) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Karpenter controller reconcile errors"
+            description: >
+              Karpenter controller {{ "{{" }} $labels.controller {{ "}}" }} has accumulated
+              {{ "{{" }} $value {{ "}}" }} reconcile errors in the last 5 minutes. Check the
+              controller logs.
+
+        ## Cloud provider (EC2/SQS/pricing) API errors — same monotonic-counter reasoning.
+        - alert: KarpenterCloudProviderErrors
+          expr: |
+            increase(karpenter_cloudprovider_errors_total{
+              job="{{ include "karpenter.fullname" . }}"
+            }[5m]) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Karpenter cloud provider API errors"
+            description: >
+              Karpenter is seeing AWS API errors ({{ "{{" }} $labels.controller {{ "}}" }}).
+              Check IAM permissions (IRSA/Pod Identity), service quotas, and the
+              interruption SQS queue configuration.
+
+        {{- with .Values.metrics.prometheusRule.additionalRules }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

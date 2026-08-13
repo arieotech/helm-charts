@@ -1,0 +1,255 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Karpenter",
+  "description": "Arieotech production Karpenter chart values schema",
+  "type": "object",
+  "properties": {
+    "global": {
+      "type": "object",
+      "properties": {
+        "imagePullSecrets": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "registry": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "not": { "pattern": "^latest$" },
+          "description": "'latest' is rejected — pin to a version or use digest."
+        },
+        "digest": { "type": "string" },
+        "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] }
+      },
+      "required": ["registry", "repository", "tag"]
+    },
+    "replicaCount": { "type": "integer", "minimum": 1 },
+    "nameOverride": { "type": "string" },
+    "fullnameOverride": { "type": "string" },
+    "serviceAccount": {
+      "type": "object",
+      "properties": {
+        "create": { "type": "boolean" },
+        "name": { "type": "string" },
+        "annotations": { "type": "object" }
+      },
+      "additionalProperties": false,
+      "if": {
+        "properties": { "create": { "const": false } },
+        "required": ["create"]
+      },
+      "then": {
+        "properties": { "name": { "type": "string", "minLength": 1 } },
+        "required": ["name"],
+        "description": "create: false with no name falls back to the namespace's default ServiceAccount, silently granting it every Karpenter binding — require an explicit name instead."
+      }
+    },
+    "automountServiceAccountToken": { "type": "boolean" },
+    "podAnnotations": { "type": "object" },
+    "podLabels": { "type": "object" },
+    "podSecurityContext": {
+      "type": "object",
+      "properties": {
+        "runAsNonRoot": { "type": "boolean" },
+        "runAsUser": { "type": "integer", "minimum": 1 },
+        "runAsGroup": { "type": "integer", "minimum": 1 },
+        "fsGroup": { "type": "integer", "minimum": 1 },
+        "seccompProfile": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["RuntimeDefault", "Localhost", "Unconfined"] }
+          }
+        }
+      }
+    },
+    "securityContext": {
+      "type": "object",
+      "properties": {
+        "allowPrivilegeEscalation": { "type": "boolean" },
+        "readOnlyRootFilesystem": { "type": "boolean" },
+        "runAsNonRoot": { "type": "boolean" },
+        "runAsUser": { "type": "integer", "minimum": 1 },
+        "capabilities": {
+          "type": "object",
+          "properties": { "drop": { "type": "array", "items": { "type": "string" } } }
+        },
+        "seccompProfile": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["RuntimeDefault", "Localhost", "Unconfined"] }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": { "cpu": { "type": "string" }, "memory": { "type": "string" } }
+        },
+        "limits": {
+          "type": "object",
+          "properties": { "cpu": { "type": "string" }, "memory": { "type": "string" } }
+        }
+      }
+    },
+    "nodeSelector": { "type": "object" },
+    "tolerations": { "type": "array" },
+    "affinity": { "type": "object" },
+    "priorityClassName": { "type": "string" },
+    "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
+    "dnsPolicy": {
+      "type": "string",
+      "enum": ["ClusterFirst", "ClusterFirstWithHostNet", "Default", "None"]
+    },
+    "topologySpreadConstraints": { "type": "array" },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "clusterName": {
+          "type": "string",
+          "description": "REQUIRED at install time (enforced by a Helm `required` guard); the controller exits without it."
+        },
+        "clusterEndpoint": { "type": "string" },
+        "interruptionQueue": { "type": "string" },
+        "batchMaxDuration": { "type": "string" },
+        "batchIdleDuration": { "type": "string" },
+        "featureGates": {
+          "type": "object",
+          "additionalProperties": { "type": "boolean" },
+          "description": "Karpenter Go feature-gate names (PascalCase) mapped to booleans. Rendered verbatim into the FEATURE_GATES env."
+        }
+      }
+    },
+    "logLevel": { "type": "string", "enum": ["debug", "info", "error"] },
+    "rbac": {
+      "type": "object",
+      "properties": {
+        "create": { "type": "boolean" },
+        "additionalClusterRoleRules": { "type": "array" },
+        "dns": {
+          "type": "object",
+          "properties": {
+            "create": { "type": "boolean" },
+            "namespace": { "type": "string", "minLength": 1 },
+            "serviceName": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["ClusterIP", "NodePort", "LoadBalancer"] },
+        "annotations": { "type": "object" }
+      }
+    },
+    "ports": {
+      "type": "object",
+      "properties": {
+        "metrics": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "health": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "livenessProbe": { "type": "object" },
+    "readinessProbe": { "type": "object" },
+    "networkPolicy": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "kubeApiServerCIDR": { "type": "string" },
+        "awsApiEgress": { "type": "boolean" },
+        "imdsEgress": { "type": "boolean" },
+        "extraIngress": { "type": "array" },
+        "extraEgress": { "type": "array" }
+      }
+    },
+    "pdb": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "minAvailable": { "type": ["integer", "string"] },
+        "maxUnavailable": { "type": ["integer", "string"] }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "serviceMonitor": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "namespace": { "type": "string" },
+            "labels": { "type": "object" },
+            "interval": { "type": "string" },
+            "scrapeTimeout": { "type": "string" },
+            "port": { "type": "string" },
+            "path": { "type": "string" },
+            "relabelings": { "type": "array" },
+            "metricRelabelings": { "type": "array" }
+          }
+        },
+        "prometheusRule": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "namespace": { "type": "string" },
+            "labels": { "type": "object" },
+            "additionalRules": { "type": "array" }
+          }
+        }
+      }
+    },
+    "istio": {
+      "type": "object",
+      "properties": {
+        "ambient": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "excludedPorts": { "type": "array", "items": { "type": "integer" } }
+          }
+        }
+      }
+    },
+    "soc2": {
+      "type": "object",
+      "properties": {
+        "auditLogging": {
+          "type": "object",
+          "properties": { "enabled": { "type": "boolean" } }
+        }
+      }
+    },
+    "dpdp": {
+      "type": "object",
+      "properties": {
+        "dataResidency": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "region": { "type": "string" }
+          },
+          "if": {
+            "properties": { "enabled": { "const": true } },
+            "required": ["enabled"]
+          },
+          "then": {
+            "properties": { "region": { "type": "string", "minLength": 1 } },
+            "required": ["region"]
+          }
+        }
+      }
+    },
+    "extraEnv": { "type": "array" },
+    "extraVolumes": { "type": "array" },
+    "extraVolumeMounts": { "type": "array" },
+    "initContainers": { "type": "array" },
+    "sidecars": { "type": "array" }
+  }
+}

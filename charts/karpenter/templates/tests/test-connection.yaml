@@ -1,0 +1,47 @@
+{{- if .Values.metrics.enabled }}
+## Helm test: verify the Karpenter controller's metrics endpoint responds. The metrics
+## server runs on every replica regardless of leader-election state, so this is a valid
+## liveness smoke test even against the standby.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ printf "%s-test-connection" (include "karpenter.fullname" .) }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: test-metrics
+      image: curlimages/curl:8.7.1
+      imagePullPolicy: IfNotPresent
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+      command:
+        - sh
+        - -c
+        - |
+          url="http://{{ include "karpenter.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.ports.metrics }}/metrics"
+          i=0
+          until curl -sf --max-time 10 -o /dev/null "$url"; do
+            i=$((i+1))
+            if [ $i -ge 6 ]; then echo "FAIL: Karpenter metrics endpoint timed out after ~110s"; exit 1; fi
+            echo "attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Karpenter metrics endpoint OK."
+{{- end }}

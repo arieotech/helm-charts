@@ -1,0 +1,58 @@
+apiVersion: v2
+name: karpenter
+description: >
+  Production-grade Karpenter chart for AWS/EKS node autoscaling. GitOps/ArgoCD-safe:
+  CRDs are shipped in the separate karpenter-crds chart so the controller never embeds
+  static CRDs that confuse ArgoCD diffing (upstream #6847). PSA restricted-mode,
+  NetworkPolicy enabled by default, full JSON Schema validation, least-privilege RBAC,
+  PodDisruptionBudget, ServiceMonitor/PrometheusRule, SOC2/DPDP defaults, and Istio
+  Ambient Mesh support. Targets Karpenter 1.14.0 (LTS).
+type: application
+version: 0.1.0
+appVersion: "1.14.0"
+keywords:
+  - karpenter
+  - autoscaling
+  - node-provisioning
+  - eks
+  - aws
+  - spot
+  - cost-optimization
+  - kubernetes
+home: https://karpenter.sh
+sources:
+  - https://github.com/arieotech/helm-charts/tree/main/charts/karpenter
+  - https://github.com/aws/karpenter-provider-aws
+icon: https://raw.githubusercontent.com/aws/karpenter-provider-aws/main/website/static/banner.png
+maintainers:
+  - name: Arieotech
+    email: helm@arieotech.com
+    url: https://arieotech.com
+dependencies:
+  - name: arieotech-lib
+    version: "0.2.0"
+    repository: "file://../arieotech-lib"
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/operator: "true"
+  artifacthub.io/changes: |
+    - kind: added
+      description: >
+        Initial release — production-grade Karpenter 1.14.0 controller. GitOps-safe CRD
+        separation (upstream #6847), PSA restricted-mode, NetworkPolicy enabled by default,
+        least-privilege RBAC (ClusterRole + namespaced leases/dns Roles), JSON Schema
+        validation, PodDisruptionBudget, ServiceMonitor/PrometheusRule, SOC2/DPDP defaults,
+        and Istio Ambient support.
+  artifacthub.io/images: |
+    - name: karpenter-controller
+      image: public.ecr.aws/karpenter/controller:1.14.0
+  artifacthub.io/recommendations: |
+    - url: https://artifacthub.io/packages/helm/arieotech/karpenter-crds
+  artifacthub.io/links: |
+    - name: Karpenter documentation
+      url: https://karpenter.sh/docs/
+    - name: ArgoCD CRD drift rationale (upstream #6847)
+      url: https://github.com/aws/karpenter-provider-aws/issues/6847
+    - name: CRD companion chart
+      url: https://github.com/arieotech/helm-charts/tree/main/charts/karpenter-crds

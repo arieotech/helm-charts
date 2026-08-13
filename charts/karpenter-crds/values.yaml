@@ -1,0 +1,22 @@
+## Arieotech Karpenter CRDs Chart — values
+## This chart installs Karpenter CRDs only. There are no deployable workloads.
+## All values here affect labels/annotations on the CRD resources.
+
+## Protect the CRDs (and every live NodePool/NodeClaim/EC2NodeClass/NodeOverlay/
+## CapacityBuffer they back) from `helm uninstall` by stamping
+## helm.sh/resource-policy: keep on each CRD. This is the safe production default —
+## deleting a Karpenter CRD cascades to deleting all its custom resources, which for
+## NodePool/NodeClaim would deprovision live nodes. Set to false only on ephemeral
+## clusters (CI) where a clean teardown is wanted.
+keepCRDs: true
+
+## Extra labels applied to all CRD resources.
+commonLabels: {}
+  # team: platform
+  # env: production
+
+## Extra annotations applied to all CRD resources.
+## Tip for ArgoCD: set argocd.argoproj.io/sync-wave: "-1" so CRDs apply before the
+## controller chart in the same sync.
+commonAnnotations: {}
+  # argocd.argoproj.io/sync-wave: "-1"

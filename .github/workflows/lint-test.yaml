@@ -94,4 +94,11 @@ jobs:
         ## Helm-unowned CRDs — see the removed --take-ownership attempt in git history,
         ## which fixed this but broke every chart's `helm uninstall` step instead,
         ## since ct applies helm-extra-args uniformly to install/upgrade/uninstall.
-        run: ct install --config .ct/ct.yaml --excluded-charts arieotech-lib,keda-crds
+        ##
+        ## karpenter (the controller) is excluded from install — it cannot reach Ready
+        ## without a real AWS account / EKS control plane to talk to (EC2, SQS, pricing
+        ## APIs), so a kind install-test would always time out. It is still linted, and
+        ## its templates are rendered by the security-scan workflow. karpenter-crds is
+        ## NOT excluded: it installs cleanly (CRDs only, no AWS, keepCRDs: false in its
+        ## ci values so uninstall cleans up).
+        run: ct install --config .ct/ct.yaml --excluded-charts arieotech-lib,keda-crds,karpenter
